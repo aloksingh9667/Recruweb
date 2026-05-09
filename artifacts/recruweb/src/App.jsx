@@ -1,0 +1,96 @@
+import { Switch, Route, Router as WouterRouter } from "wouter";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { NavBar } from "@/components/NavBar";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+
+// Import pages
+import Home from "@/pages/Home";
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
+import Jobs from "@/pages/Jobs";
+import JobDetail from "@/pages/JobDetail";
+import CandidateDashboard from "@/pages/CandidateDashboard";
+import CandidateProfile from "@/pages/CandidateProfile";
+import EmployerDashboard from "@/pages/EmployerDashboard";
+import EmployerJobs from "@/pages/EmployerJobs";
+import EmployerJobForm from "@/pages/EmployerJobForm";
+import JobApplications from "@/pages/JobApplications";
+import EmployerProfile from "@/pages/EmployerProfile";
+
+const queryClient = new QueryClient();
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <WouterRouter base={import.meta.env.BASE_URL?.replace(/\/$/, "") || ""}>
+            <div className="min-h-[100dvh] bg-background text-foreground flex flex-col font-sans selection:bg-primary/20">
+              <NavBar />
+              <main className="flex-1">
+                <Switch>
+                  {/* Public Routes */}
+                  <Route path="/" component={Home} />
+                  <Route path="/login" component={Login} />
+                  <Route path="/register" component={Register} />
+                  <Route path="/jobs" component={Jobs} />
+                  <Route path="/jobs/:jobId" component={JobDetail} />
+                  
+                  {/* Candidate Protected Routes */}
+                  <Route path="/candidate/dashboard">
+                    <ProtectedRoute component={CandidateDashboard} allowedRole="candidate" />
+                  </Route>
+                  <Route path="/candidate/profile">
+                    <ProtectedRoute component={CandidateProfile} allowedRole="candidate" />
+                  </Route>
+                  
+                  {/* Employer Protected Routes */}
+                  <Route path="/employer/dashboard">
+                    <ProtectedRoute component={EmployerDashboard} allowedRole="employer" />
+                  </Route>
+                  <Route path="/employer/jobs">
+                    <ProtectedRoute component={EmployerJobs} allowedRole="employer" />
+                  </Route>
+                  <Route path="/employer/jobs/new">
+                    <ProtectedRoute component={EmployerJobForm} allowedRole="employer" />
+                  </Route>
+                  <Route path="/employer/jobs/:jobId/edit">
+                    <ProtectedRoute component={EmployerJobForm} allowedRole="employer" />
+                  </Route>
+                  <Route path="/employer/jobs/:jobId/applications">
+                    <ProtectedRoute component={JobApplications} allowedRole="employer" />
+                  </Route>
+                  <Route path="/employer/profile">
+                    <ProtectedRoute component={EmployerProfile} allowedRole="employer" />
+                  </Route>
+
+                  {/* 404 */}
+                  <Route path="/:rest*" component={() => (
+                    <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-8">
+                      <h2 className="text-4xl font-bold mb-4">404 - Page Not Found</h2>
+                      <p className="text-muted-foreground mb-8">The page you are looking for doesn't exist or has been moved.</p>
+                      <a href="/" className="text-primary hover:underline font-medium">Return home</a>
+                    </div>
+                  )} />
+                </Switch>
+              </main>
+              
+              {/* Simple Footer */}
+              <footer className="border-t bg-muted/20 py-8 mt-12">
+                <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
+                  <p>© {new Date().getFullYear()} Recruweb Resources Pvt. Ltd. All rights reserved.</p>
+                </div>
+              </footer>
+            </div>
+          </WouterRouter>
+          <Toaster />
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;

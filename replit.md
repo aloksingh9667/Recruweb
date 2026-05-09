@@ -1,45 +1,59 @@
-# [Project name]
+# Recruweb
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A full-stack recruitment platform connecting job seekers with employers, focused on Noida & Delhi NCR (Recruweb Resources Pvt. Ltd.).
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- API server: `pnpm --filter @workspace/api-server run dev` (port 8080, mapped to `/api`)
+- Frontend: `pnpm --filter @workspace/recruweb run dev` (port 21329, mapped to `/`)
+- Both run automatically via Replit workflows
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- **Backend:** Node.js + Express 5, MongoDB + Mongoose, pure JavaScript (no TypeScript)
+- **Frontend:** React + Vite, JSX only (no TypeScript), Tailwind + shadcn UI, wouter routing, TanStack Query
+- **Auth:** JWT (stored in localStorage as `recruweb_token`), bcryptjs password hashing
+- **Uploads:** Cloudinary private storage for resumes (signed URLs on demand)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/api-server/src/` — Express backend (JavaScript)
+  - `app.js` — Express app setup, CORS, routes mount
+  - `index.js` — Server entry point, MongoDB connect
+  - `routes/` — auth, jobs, applications, candidates, employers
+  - `models/` — User, Job, Application, CandidateProfile, EmployerProfile (Mongoose)
+  - `middleware/auth.js` — JWT verify, requireRole
+  - `lib/db.js` — MongoDB connection; `lib/cloudinary.js` — Cloudinary config; `lib/logger.js` — pino logger
+- `artifacts/recruweb/src/` — React frontend (JSX)
+  - `App.jsx` — Router + providers
+  - `contexts/AuthContext.jsx` — JWT auth context
+  - `lib/api.js` — fetch wrapper with auth headers
+  - `pages/` — Home, Login, Register, Jobs, JobDetail, CandidateDashboard, CandidateProfile, EmployerDashboard, EmployerJobs, EmployerJobForm, JobApplications, EmployerProfile
+  - `components/` — NavBar, JobCard, ProtectedRoute, shadcn UI
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Express 5 handles async route errors natively — no `express-async-errors` needed
+- Resumes stored as Cloudinary `private` type; employers get time-limited signed URLs only for applications to their own jobs
+- JWT role system: `candidate` or `employer` — routes enforce this via `requireRole` middleware
+- No TypeScript, no codegen, no Zod on the backend — plain JS with Mongoose validation
+- Frontend uses `zod` + `react-hook-form` for client-side form validation only
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- **Candidates:** Register, search/filter jobs, apply with cover letter, upload resume (PDF/DOCX), track application status
+- **Employers:** Post/edit/delete jobs, view applicants per job, download resumes (signed URL), update application status (pending → reviewed → shortlisted → rejected → hired)
+- **Public:** Browse all jobs, search by keyword/location/category/type, view job details
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- JavaScript only for backend — no TypeScript files in api-server
+- Express 5 (no express-async-errors)
+- MongoDB (Mongoose), not PostgreSQL/Drizzle
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
-
-## Pointers
-
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- Do NOT add `express-async-errors` — incompatible with Express 5
+- Resume upload uses multer-storage-cloudinary with `type: "private"` — never public
+- Employer resume access: signed URL generated in `GET /api/applications/job/:jobId` only if `req.user.role === "employer"` and job belongs to them
+- All frontend files are `.jsx` — never `.tsx`

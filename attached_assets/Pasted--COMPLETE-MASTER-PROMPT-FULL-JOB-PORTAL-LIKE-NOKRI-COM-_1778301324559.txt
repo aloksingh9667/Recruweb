@@ -1,0 +1,161 @@
+🚀 COMPLETE MASTER PROMPT (FULL JOB PORTAL LIKE NOKRI.COM)
+
+You are an expert Senior Full-Stack Developer and System Architect. Build a complete production-ready job portal web application like Nokri.com / Naukri.com using the MERN stack (MongoDB, Express, React, Node.js) with modern UI and AI integration.
+
+The system must include User panel, Employer panel, and Admin panel (fully separate authentication and dashboards). Code must be clean, modular, scalable, and organized in proper folders.
+
+🧠 TECH STACK
+
+Frontend: React.js (Vite), Tailwind CSS, Redux Toolkit, React Router
+Backend: Node.js, Express.js, MongoDB, Mongoose
+Auth: JWT + bcrypt
+File Upload: Multer
+AI: Google Gemini API (chatbot, resume analysis, job matching)
+Voice Assistant: Web Speech API + Gemini response integration
+
+📁 PROJECT STRUCTURE (MANDATORY)
+
+/frontend → User job portal UI
+/backend → APIs, database, AI logic
+/admin → Separate admin dashboard
+
+Backend structure:
+/config /controllers /models /routes /middlewares /services (Gemini AI, email, voice) server.js
+
+Frontend structure:
+/components /pages /redux /services /assets App.jsx
+
+Admin structure:
+/pages /components /services
+
+👥 USER ROLES
+1. Job Seeker (User)
+Register/Login
+Create profile
+Upload resume + documents
+AI Resume Builder (3 templates)
+AI Resume Analysis (score + improvements)
+Apply to jobs (auto-fill using saved data)
+Save jobs
+Chatbot + Voice assistant
+Store resume and profile for fast apply
+2. Employer
+Register/Login
+Post jobs
+Edit/Delete jobs
+View applications
+Filter resumes by skills, keywords, experience, education
+Download resumes
+Shortlist candidates
+3. Admin (FULL ACCESS)
+Manage all users
+Manage employers
+Approve/reject jobs
+Delete fake content
+View analytics dashboard
+Full system control
+💼 CORE FEATURES
+Job System
+Job listing with filters (salary, location, experience, type)
+Job detail page
+One-click apply system using saved profile
+📄 AI RESUME SYSTEM
+3 resume templates:
+Modern Professional
+ATS Friendly Minimal
+Creative Design
+
+Features:
+
+Resume builder UI
+AI-generated resume from user data (Gemini)
+Resume score & optimization suggestions
+Download PDF
+🧠 AI FEATURES (GEMINI)
+AI Chatbot for job guidance
+Resume improvement analysis
+Job recommendations based on profile
+Interview preparation assistant
+🎙️ VOICE ASSISTANT
+Voice search for jobs
+Voice chat with AI assistant
+Voice-based apply commands
+📂 DOCUMENT SYSTEM
+Upload resume, certificates, cover letters
+Secure storage in backend
+Linked to user profile for auto applications
+🛠️ BACKEND APIs
+
+Auth:
+
+POST /register
+POST /login
+GET /profile
+
+Jobs:
+
+POST /jobs
+GET /jobs
+GET /jobs/:id
+DELETE /jobs/:id
+
+Applications:
+
+POST /apply
+GET /applications
+
+Resume:
+
+POST /resume
+GET /resume
+POST /resume/analyze (Gemini AI)
+
+Admin:
+
+GET /admin/users
+GET /admin/jobs
+DELETE /admin/user/:id
+🔐 SECURITY
+JWT authentication
+Role-based access control (User, Employer, Admin)
+Password hashing (bcrypt)
+Protected routes middleware
+🎨 UI/UX REQUIREMENTS
+Modern UI like Naukri / LinkedIn
+Fully responsive design
+Clean dashboard layouts
+Dark/light mode support
+Smooth navigation
+🤖 AI INTEGRATION RULES
+
+Use Google Gemini API for:
+
+Chatbot responses
+Resume analysis
+Job recommendations
+Resume generation
+⚙️ FUNCTIONAL REQUIREMENTS
+Fast job search system
+Smart filtering system
+Auto-apply system using saved resume data
+Employer resume filtering engine
+Admin monitoring system
+Scalable MongoDB schema design
+📦 FINAL OUTPUT REQUIRED
+
+Generate:
+
+Full project folder structure
+Complete backend (Node + Express + MongoDB)
+Full frontend (React)
+Admin panel
+Gemini AI integration services
+Resume builder system
+Voice assistant implementation
+MongoDB schema design
+🚀 IMPORTANT
+Do NOT write everything in one file
+Keep clean separation of frontend, backend, admin
+Use professional coding standards
+Add comments for understanding
+Make it production-ready and scalable
