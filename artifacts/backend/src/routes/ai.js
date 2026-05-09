@@ -167,4 +167,44 @@ Return ONLY valid JSON array:
   res.json({ questions, jobTitle });
 });
 
+// POST /api/ai/rank-candidates — rank applicants for a job by fit score (employer only)
+router.post("/rank-candidates", protect, requireRole("employer"), async (req, res) => {
+  const { jobTitle, jobDescription, jobRequirements, jobSkills, candidates } = req.body;
+  if (!jobTitle || !candidates?.length) return res.status(400).json({ message: "jobTitle and candidates required" });
+
+  const ai = getAI();
+  const prompt = `You are an expert technical recruiter. Rank the following candidates for the role of "${jobTitle}".
+
+Job Description: ${jobDescription || "Not provided"}
+Required Skills: ${Array.isArray(jobSkills) ? jobSkills.join(", ") : jobSkills || "Not specified"}
+Requirements: ${jobRequirements || "Not provided"}
+
+Candidates:
+${candidates.map((c, i) => `
+[${i + 1}] ID: ${c.id}
+Name: ${c.name || "Unknown"}
+Current Title: ${c.currentTitle || "N/A"}
+Skills: ${Array.isArray(c.skills) ? c.skills.join(", ") : "None listed"}
+Experience: ${c.experience || "Not provided"}
+Education: ${c.education || "Not provided"}
+Summary: ${c.bio || "No summary"}
+`).join("\n")}
+
+Return ONLY valid JSON array with all candidates ranked from best to worst fit:
+[{"id":"<candidate_id>","score":<0-100>,"reason":"<one concise sentence explaining the match score>"}]`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    config: { responseMimeType: "application/json", maxOutputTokens: 8192 },
+  });
+
+  let ranked;
+  try { ranked = JSON.parse(response.text); }
+  catch { ranked = candidates.map(c => ({ id: c.id, score: 50, reason: "Could not analyze" })); }
+
+  res.json({ ranked, total: ranked.length });
+});
+
 export default router;
+

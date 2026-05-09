@@ -5,7 +5,7 @@ const applicationSchema = new mongoose.Schema({
   candidateId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   status: {
     type: String,
-    enum: ["pending", "reviewed", "shortlisted", "rejected", "hired"],
+    enum: ["pending", "reviewed", "shortlisted", "interview_scheduled", "rejected", "hired"],
     default: "pending",
   },
   coverLetter: { type: String },
