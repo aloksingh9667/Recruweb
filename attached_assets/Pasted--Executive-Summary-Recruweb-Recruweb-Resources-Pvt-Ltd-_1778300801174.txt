@@ -1,0 +1,276 @@
+# Executive Summary  
+Recruweb (Recruweb Resources Pvt. Ltd.) is a Noida-based recruitment and HR services firm (founded 2023) specializing in connecting professionals with employers【62†L32-L40】. The goal is to crawl **all public content** on *recruweb.com* (no login) and build a structured dataset for a Gemini-based chatbot.  This report outlines the **site structure**, **data extraction plan**, **schemas for each content type**, **mapping to chatbot intents**, **sample Gemini API payloads**, **data quality/legal notes**, a **pipeline design (with code examples)**, **security/privacy compliance**, and an **effort estimate**.  We prioritize pages like Job Listings, Company and Candidate profiles, Contact/FAQ pages, Help/Docs, Blog posts, Terms/Privacy, and any API docs. The plan combines standard scraping best practices (respect `robots.txt`, rate-limit, user-agent rotation【35†L268-L277】【34†L420-L428】) with schema design (e.g. schema.org’s JobPosting fields【41†L88-L90】【43†L7-L10】) to ensure comprehensive coverage and chatbot readiness. 
+
+## 1. Site Map and Page Taxonomy  
+We first identify the site’s main sections. Based on similar recruitment sites and Recruweb’s LinkedIn profile【62†L32-L40】, likely key pages include: Home, About Us, Services, **Jobs** (list and detail), **Companies** or **Clients**, **Candidates** or **Profiles**, **Contact Us**, **FAQs/Help**, **Blog/News**, **Terms & Privacy**, and any **API/Integration Docs**.  We create a provisional sitemap table of page types, URLs (or URL patterns), and content types. For example:
+
+| **Page/Section**      | **Example URL/Pattern**     | **Content Type**            | **Notes**                  |
+|-----------------------|-----------------------------|-----------------------------|----------------------------|
+| Home/Landing          | `/`                         | Homepage (overview, CTAs)   | Company pitch, summary     |
+| About/Company         | `/about`                    | About Us                    | Company description        |
+| Job Listings (Search) | `/jobs`, `/jobs?category=…` | Job list (multiple offers)  | Search/filter interface    |
+| Job Detail            | `/jobs/<jobId>`             | Job posting detail          | Title, description, etc.   |
+| Company Profiles      | `/companies`, `/company/<id>` | Company info              | Name, industry, etc.       |
+| Candidate Profiles    | `/candidates`, `/profile/<id>` | Candidate resumes/profiles | (likely login-gated)       |
+| Contact Us            | `/contact`                  | Contact info                | Address, phone, email      |
+| FAQ / Help            | `/faq`, `/help`, `/docs`    | FAQs / Knowledge base       | Q&A content                |
+| Blog List             | `/blog`                     | Blog overview               | Post titles, summaries     |
+| Blog Post             | `/blog/<slug>`              | Blog article content        | Title, date, author        |
+| Terms & Privacy       | `/terms`, `/privacy`        | Policy pages                | Legal text                 |
+| API / Integration Docs| `/api`, `/developers`       | API docs/Integration guides | If available (check footer) |
+| Additional             | `/login`, `/register`      | Auth pages                  | (Not scraped as public)    |
+
+*Table 1: Hypothetical site map and taxonomy.  Actual URLs and structure should be confirmed by crawling.*  In practice, we would fetch `https://recruweb.com/robots.txt` to see sitemap links and disallowed paths【35†L268-L277】.  As one guide notes, “deciding first which data you want to scrape and where it resides will make it less time consuming when putting together the site map”【55†L229-L237】. We plan to start at the Home page, follow internal links to each section (job lists, blog, etc.), and record the URL patterns and page types for later parsing.
+
+## 2. Structured Extraction of Content  
+For each content type, we identify how to locate and parse data from HTML. We expect:  
+
+- **Job Listings**: These likely appear as a listing or search results. We will crawl the Jobs section and follow “next” links for pagination. For each Job detail page, extract fields such as title, job ID, description, location, salary, requirements, posted date, employment type, and company name. E.g. using BeautifulSoup or Scrapy, we might do: 
+  ```python
+  jobs = soup.select("div.job-listing")
+  for job in jobs:
+      title = job.select_one("h2.title").get_text()
+      location = job.select_one(".location").get_text()
+      # ...
+  ```
+  Extract any links to full job pages for detailed fields like description and skills.  
+
+- **Company Profiles**: If Recruweb lists client or partner companies, scrape the list and detail pages. Fields might include company name, industry, size, location, and a description. For example, we might select `div.company-card` entries.  
+
+- **Candidate Profiles**: Many job sites allow candidates to create profiles. If publicly accessible (no login), extract fields like name, current position, skills, location, and contact info (if any public). *If login is required, note that these profiles are unavailable*.  
+
+- **Contact Info**: The “Contact Us” page often includes address, phone number, email, etc. We would grab the address text and any tel/mailto links. Example:  
+  ```python
+  address = soup.select_one("section.contact .address").get_text()
+  email = soup.select_one("a[href^='mailto']").get("href")
+  phone = soup.select_one("a[href^='tel']").get("href")
+  ```  
+
+- **FAQs/Help Docs**: The FAQ or Help sections usually list question-answer pairs. We can locate each Q&A pair (e.g. as `div.faq-item`) and extract the question text and the answer text.  
+
+- **Blog Posts**: Scrape the blog listing to get post titles, authors, dates, and URLs. Then visit each post to extract the full content, tags, and comment count if any.  
+
+- **Terms & Privacy**: Static pages under “Terms” or “Privacy” contain legal text. We can treat the entire page as content (possibly split by headings).  
+
+- **API/Integration Docs**: If Recruweb provides an API or integration documentation (common in tech services), crawl those pages to extract endpoint definitions, request/response formats, etc.  
+
+For all pages, we will use an HTML parser (e.g. BeautifulSoup, Scrapy’s selectors) to locate elements by CSS classes or tags. Dynamic content (if any) may require rendering with Selenium or using available JSON endpoints. At each step, we will skip any content behind authentication and respect `robots.txt`.  
+
+## 3. Normalized Data Schemas  
+Each content type will be mapped to a consistent schema. We propose the following schemas (field name : type [example]).  These are based on common standards (e.g. schema.org) and the site’s content:
+
+- **Job Posting**:  
+  - `job_id`: string (unique identifier) [“JD1234”]  
+  - `title`: string [“Software Engineer”]  
+  - `company`: string [“Recruweb Resources Pvt. Ltd.”]  
+  - `location`: string [“Noida, India”]  
+  - `category`: string [“IT / Software”]  
+  - `employment_type`: string [“Full-time”]  
+  - `date_posted`: date [“2026-04-30”]  
+  - `closing_date`: date [“2026-05-30”] (if available)  
+  - `description`: string (long) [“Responsibilities include...”]  
+  - `requirements`: string [“Bachelor’s in CS, 2+ years”]  
+  - `salary_range`: string or number [“₹5,00,000 – ₹7,00,000”]  
+  - `skills`: list of strings [“Python”, “Django”]  
+  - `apply_url`: string (URL) [“https://recruweb.com/jobs/1234/apply”]  
+
+  *We mirror schema.org’s JobPosting where possible (e.g. `title`, `hiringOrganization`, `jobLocation`【41†L74-L81】【43†L7-L10】).*  
+
+- **Company Profile**:  
+  - `company_id`: string [“C567”]  
+  - `name`: string [“Acme Corp.”]  
+  - `industry`: string [“Healthcare”]  
+  - `size`: string [“100-200 employees”]  
+  - `founded`: year [“2020”]  
+  - `description`: string [“Acme is a leading…”]  
+  - `website`: string (URL) [“https://acmecorp.com”]  
+  - `location`: string [“Mumbai, India”]  
+  - `contact_email`: string [“hr@acmecorp.com”]  
+
+- **Candidate Profile**:  
+  - `candidate_id`: string [“Cand890”]  
+  - `name`: string [“Rahul Kumar”]  
+  - `current_title`: string [“Data Analyst”]  
+  - `location`: string [“Bangalore, India”]  
+  - `education`: string [“B.Tech in CS, IIT Delhi”]  
+  - `skills`: list [“Python”, “SQL”, “Machine Learning”]  
+  - `experience`: string [“3 years at XYZ Corp.”]  
+  - `contact_email`: string (if public) [“rahul@example.com”]  
+
+- **Contact Info**:  
+  - `office_address`: string [“H-112, Sector 63, Noida, UP”]  
+  - `phone`: string [“+91-120-XXXXXXXX”]  
+  - `email`: string [“info@recruweb.com”]  
+
+- **FAQ/Help**: (each item)  
+  - `question`: string [“How to apply for a job?”]  
+  - `answer`: string [“Click on the Apply button...”]  
+
+- **Blog Post**:  
+  - `post_id`: string [“B234”]  
+  - `title`: string [“HR Trends in 2026”]  
+  - `author`: string [“Neha Kushwaha”]  
+  - `date_published`: date [“2026-03-15”]  
+  - `tags`: list of strings [“HR”, “Recruitment”]  
+  - `content`: string (HTML or text) [“<p>In recent times…”]  
+  - `url`: string (canonical link)  
+
+- **Terms & Privacy**:  
+  - `section`: string [“Introduction”]  
+  - `text`: string (paragraph) [“Welcome to Recruweb...”]  
+
+- **API/Integration** (if present):  
+  - `endpoint`: string [“GET /api/jobs”]  
+  - `description`: string [“Retrieve list of jobs.”]  
+  - `parameters`: list of {name, type, description}  
+  - `response_format`: string [“JSON”]  
+
+*Table 2 (below) shows an example schema excerpt for Job and Company.*
+
+| **Field**        | **Type**      | **Job Example**          | **Company Example**       |
+|------------------|---------------|--------------------------|---------------------------|
+| id               | string        | `JD_1234`                | `C_45`                    |
+| title/name       | string        | `Software Engineer`      | `Acme Corp.`              |
+| date_posted/founded | date/year   | `2026-05-01`             | `2018`                    |
+| employment_type/size | string     | `Full-time`              | `50-100 employees`        |
+| location         | string        | `Noida, India`           | `Mumbai, India`           |
+| description      | string        | *Job duties...*          | *Company overview...*     |
+| salary_range     | string        | `₹5-7 LPA`               | *(n/a)*                   |
+| skills/industry  | list/string   | `["Python","Django"]`    | `Healthcare`              |
+| apply_url/website| URL           | `https://.../apply`      | `https://acme.com`        |
+
+*Table 2: Example content schemas (Jobs, Companies). Other types (Candidate, FAQ, Blog) follow similar field conventions.* 
+
+All date fields use ISO format. Strings are UTF-8 text. Lists (skills, tags) can be stored as arrays. These schemas will guide our extraction code and ensure consistency in the dataset.
+
+## 4. Chatbot Intents and Entity Mapping  
+To build an AI assistant, we map data fields into **intents** and **entities**. For example, users might ask about job availability, company info, or site policies. Key intents include job search, company inquiry, candidate information, contacting support, FAQs, etc. We identify relevant entities (slots) from schema fields, such as `job_title`, `location`, `company_name`, and `faq_question`. Below is a mapping table with sample utterances and responses:
+
+| **Intent**            | **Entities/Fields**          | **Example User Query**                 | **Chatbot Response (using data)**                           |
+|-----------------------|------------------------------|----------------------------------------|-------------------------------------------------------------|
+| `search_job`          | `job_title`, `location`      | “Show me *Software Engineer* jobs in *Noida*” | “Here are Software Engineer jobs in Noida: Job123 (Full-time at Recruweb), Job456 (Full-time at XYZ Corp).” |
+| `get_company_info`    | `company_name`               | “Tell me about *Recruweb Resources*.” | “Recruweb Resources Pvt. Ltd. is an HR service firm based in Noida. […]" |
+| `get_candidate_info`  | `candidate_name`             | “Show profile of *Neha Kushwaha*.”    | “Neha Kushwaha is a senior recruiter with 5 years of experience, skilled in HR management.” |
+| `contact_support`     | *(none or `contact_type`)*   | “How can I reach support?”             | “You can email us at info@recruweb.com or call +91-120-XXXXXXX.” |
+| `faq_query`           | `faq_question`               | “How do I change my password?” (if in FAQ) | “Our Help Center says: *You can change your password by clicking the gear icon…”.” |
+| `blog_latest`         | *(none)*                     | “What’s new on your blog?”            | “Recent posts include ‘AI in HR 2026’ and ‘Navigating Remote Hiring’.” |
+| `terms_privacy`       | *(none)*                     | “What is your privacy policy?”        | “Our privacy policy states that we collect only business-related data, not personal info【60†L216-L224】.” |
+| `api_info`            | *(if API doc exists)*        | “List API endpoints.”                | “Available endpoints: GET /api/jobs (list jobs), POST /api/apply (submit application)…” |
+
+*Table 3: Example intent/entity mappings with sample utterances.*  Entities in *italics* above correspond to schema fields. For instance, the `search_job` intent would use fields like `title` and `location` from job postings. The chatbot should be trained so that queries map to these intents and the bot can fill responses by querying the structured dataset. In Gemini, these fields would be used in the *context* or prompt to produce accurate answers. 
+
+## 5. Sample Gemini API Payloads  
+Using Google Gemini’s chat API (which is OpenAI-compatible)【51†L263-L272】, we prepare JSON payloads. For example, to answer a job search query, we can pass system instructions, context, and user message. Sample JSON for Gemini might be:
+
+```json
+{
+  "model": "gemini-3-flash-preview",
+  "reasoning_effort": "low",
+  "messages": [
+    {"role": "system", "content": "You are a helpful assistant for Recruweb. Use the provided data to answer user questions."},
+    {"role": "user", "content": "Find Software Engineer jobs in Noida listed this week."}
+  ]
+}
+```
+
+Here, the assistant would use the scraped job database to list matching jobs. Another example – asking about a company:
+
+```json
+{
+  "model": "gemini-3-flash-preview",
+  "messages": [
+    {"role": "system", "content": "You are an expert on Recruweb’s content and policies."},
+    {"role": "user", "content": "What industries does Recruweb serve?"}
+  ]
+}
+```
+
+The response can be parsed from `response.choices[0].message`【51†L267-L272】. These examples show “prompt templates” with system instructions and user queries in JSON format, ready to send to Gemini. (In practice, you’d programmatically fill the `"content"` with actual user input and possibly relevant knowledge from the database as additional context.)
+
+## 6. Data Quality and Legal/Robots/Privacy Considerations  
+- **Missing/Unavailable Data**: If candidate profiles or certain pages require login, note them as “private”. We will only scrape publicly accessible pages. For example, if `/profile/<id>` redirects to login, we skip it. All scraped data should be valid HTML in the public domain.  
+- **Quality Checks**: We’ll validate that required fields exist (e.g. a job listing has title/location). Missing fields will be logged. Duplicates (e.g. same job on two pages) will be deduped by `job_id` or URL. Text fields will be cleaned of HTML tags and whitespace.  
+- **Robots.txt**: Before crawling, fetch `https://recruweb.com/robots.txt`. We will parse any `Disallow` and `Crawl-delay` rules【35†L268-L277】【60†L324-L334】. If pages like `/api/` are disallowed, we will not scrape them. Respecting `robots.txt` is crucial; ignoring it risks blocks or legal issues【35†L268-L277】【60†L324-L334】.  
+- **Rate Limiting**: To avoid overloading the site or being banned, we set delays. Scrapy recommends a delay of 2+ seconds per request【34†L420-L428】. We will throttle to ~1–2 requests/sec and rotate user agents. If needed, use proxies or delay further. These measures balance speed with politeness【34†L412-L421】.  
+- **Legal & Privacy**: We will avoid scraping personal data (PII) beyond public business info. Guidelines stress “Avoid PII… don’t scrape names, emails, phone numbers” of individuals【60†L216-L224】. We will focus on business-related content (job details, company info, FAQ text) and redact any unintended PII (e.g. candidate email on a profile) immediately. Since Recruweb is an Indian company, local laws (e.g. India’s IT Act, draft Data Protection Bill) should be considered, but generally public business info is safe.   
+- **Copyright & Terms**: The scraped data will be used internally to build a chatbot. We pull “raw facts” (job facts, FAQs) but will not reuse creative text beyond what the user explicitly requests. We will cite data sources in training if needed. We will not republish blog posts verbatim outside the chatbot without permission.  
+
+In summary, we will follow ethical scraping practices: obey `robots.txt`, use reasonable delays, avoid forbidden pages, and respect privacy by skipping any personal or sensitive information【35†L268-L277】【60†L216-L224】.
+
+## 7. Crawling & Data Pipeline  
+We propose a modular pipeline: fetch robots.txt → crawl pages → identify page types → extract fields → clean/normalize → dedupe → store. In each step we use robust tools (Python libraries) and log progress. Below is a **Mermaid** flowchart of the pipeline:
+
+```mermaid
+flowchart LR
+  A[Fetch robots.txt and sitemap] --> B[Crawl seed URLs with rate-limit];
+  B --> C[Parse each page; detect type (job, blog, FAQ, etc.)];
+  C --> D[Extract fields into structured records];
+  D --> E[Clean text, normalize formats];
+  E --> F[Deduplicate and validate records];
+  F --> G[Store structured data (JSON/DB)];
+  G --> H[Use data to build chatbot knowledge base]
+```
+
+**Tools & Code**: We will likely use **Scrapy** for crawling (async, polite, pipeline support) or a combination of `requests` + **BeautifulSoup**. Example using Scrapy (from docs)【32†L94-L102】: 
+
+```python
+import scrapy
+from scrapy.crawler import CrawlerProcess
+
+class RecruSpider(scrapy.Spider):
+    name = "recru"
+    start_urls = ["https://recruweb.com/"]
+    custom_settings = {"DOWNLOAD_DELAY": 2, "USER_AGENT": "Mozilla/5.0"}
+
+    def parse(self, response):
+        # Identify links to follow or data to extract
+        for href in response.css("a::attr(href)").getall():
+            yield response.follow(href, self.parse_page)
+    
+    def parse_page(self, response):
+        if "jobs" in response.url:
+            # extract job data
+            title = response.css("h1.job-title::text").get()
+            # ... other fields
+            yield {"job_id": response.url, "title": title}
+        elif "blog" in response.url:
+            # extract blog data
+            yield {"post_id": response.url, "title": response.css("h1::text").get()}
+        # ... handle other types (companies, FAQs, etc.)
+```
+
+For simpler pages, **requests + BeautifulSoup** could suffice: 
+
+```python
+import requests
+from bs4 import BeautifulSoup
+
+res = requests.get("https://recruweb.com/contact", headers=headers)
+soup = BeautifulSoup(res.text, 'html.parser')
+contact = soup.select_one("div.contact-info").get_text().strip()
+```
+
+We will integrate **retry logic** (exponential backoff on failures) and log any 4xx/5xx errors. The final data will be saved as JSON or loaded into a database (e.g. MongoDB or SQL) for easy querying by the chatbot.
+
+## 8. Security, PII Handling, Compliance Checklist  
+- **Secure Storage**: Store scraped data in a secure database or encrypted files, with access controls. Remove any sensitive information (PII) found by mistake.  
+- **PII Minimization**: Exclude personal names/emails (except official company contacts) as per compliance.【60†L216-L224】. Anonymize or hash any user-generated content if present.  
+- **Consent/ToS**: We will not scrape after logging in, and abide by site terms. We consider Recruweb’s terms: if “Browsewrap” (footer link) applies, risk is lower【60†L324-L334】.  
+- **Robots.txt**: Confirm robots rules; do not scrape disallowed directories. Respect any specified crawl-delay【35†L268-L277】.  
+- **Copyright**: Use the data to answer queries internally; do not republish blog or prose. Any excerpt used as chatbot answer is brief (fair use for QA).  
+- **Rate Limit**: Set delays (~1–2s) and monitor site response to prevent bans【34†L420-L428】.  
+- **Monitoring**: Watch for IP blocks (HTTP 429/403) and adjust rate or proxy usage.  
+- **Legal Review**: Confirm with legal (if needed) that collecting public business/job data is permitted under Indian law. Avoid scraping any private user profiles.
+
+## 9. Effort and Resource Estimate  
+Implementing this pipeline is a moderate project. For a small team (1–2 data engineers), estimated effort might be:  
+- **Planning & Exploration**: 1–2 weeks (finalize schema, test sample URLs)【55†L229-L237】.  
+- **Crawling Code**: 1–2 weeks (develop spiders/parsers for each section).  
+- **Data Cleaning & Storage**: 1 week (normalize and dedupe data).  
+- **Chatbot Integration**: 1–2 weeks (set up Gemini calls, integrate embeddings).  
+- **Testing & Iteration**: 1–2 weeks (fix edge cases, validate completeness).  
+
+Total **~1-1.5 months** for an experienced engineer, plus compute resources. Since the site seems mid-size (dozens/hundreds of pages), a single server with a few CPU/GB RAM should suffice, or using Scrapy Cloud/Zyte for distributed crawling.  Extra resources may be needed for storing embeddings or running the chatbot. The quoted practices (using delays, rotating user agents, caching robots.txt) are standard for compliance【35†L268-L277】【34†L420-L428】. No unusual software is required beyond Python and usual scraping libraries.
+
+**Summary Table of Contents:** We have mapped out the **site structure** (Table 1), defined **normalized schemas** (Table 2) and **intent mappings** (Table 3).  Sample JSON payloads demonstrate how to prompt Gemini with system/user messages. A step-by-step pipeline (see diagram) shows the flow from crawling to chatbot. We will follow security/PII best practices【60†L216-L224】 and legal guidelines. This comprehensive approach ensures Recruweb’s public data is transformed into a clean, structured knowledge base ready for an AI assistant. 
+
