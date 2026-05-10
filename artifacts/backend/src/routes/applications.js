@@ -126,6 +126,50 @@ router.get("/job/:jobId", protect, requireRole("employer"), async (req, res) => 
   res.json({ applications: filtered, total: filtered.length });
 });
 
+// GET /api/applications/employer/all — employer only: all applications across all jobs
+router.get("/employer/all", protect, requireRole("employer"), async (req, res) => {
+  const myJobs = await Job.find({ employerId: req.user._id }).select("_id title location salary").lean();
+  const jobIds = myJobs.map(j => j._id);
+
+  const applications = await Application.find({ jobId: { $in: jobIds } })
+    .populate("candidateId")
+    .sort({ createdAt: -1 });
+
+  const jobMap = {};
+  myJobs.forEach(j => { jobMap[j._id.toString()] = j; });
+
+  const result = await Promise.all(
+    applications.map(async (a) => {
+      const obj = a.toJSON();
+      obj.job = jobMap[a.jobId.toString()] || null;
+      if (!a.candidateId) return obj;
+
+      const profile = await CandidateProfile.findOne({ userId: a.candidateId._id });
+      if (profile) {
+        const profileObj = profile.toJSON();
+        profileObj.name = a.candidateId.name;
+        profileObj.email = a.candidateId.email;
+        profileObj.user = { name: a.candidateId.name, email: a.candidateId.email };
+        if (profile.resumePublicId) {
+          try { profileObj.resumeUrl = await getSignedResumeUrl(profile.resumePublicId); }
+          catch { profileObj.resumeUrl = null; }
+        }
+        obj.candidate = profileObj;
+      } else {
+        obj.candidate = {
+          name: a.candidateId.name,
+          email: a.candidateId.email,
+          user: { name: a.candidateId.name, email: a.candidateId.email },
+          skills: [],
+        };
+      }
+      return obj;
+    })
+  );
+
+  res.json({ applications: result, jobs: myJobs, total: result.length });
+});
+
 // PUT /api/applications/:applicationId/status — employer only
 router.put("/:applicationId/status", protect, requireRole("employer"), async (req, res) => {
   const { status } = req.body;

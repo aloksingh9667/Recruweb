@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useQuery } from "@tanstack/react-query";
+import { fetchApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -12,9 +14,9 @@ import {
   Briefcase, ChevronDown, Brain, Target, User, LayoutDashboard, LogOut,
   FileText, Building2, Bookmark, Search, MapPin, DollarSign, Star, WifiHigh,
   Wand2, TrendingUp, Layers, BarChart3, Plus,
-  Users, HelpCircle, Phone, Mail, AlertCircle, Settings, Lock, Moon, Sun,
+  Users, HelpCircle, Phone, Mail, AlertCircle, Settings, Moon, Sun,
   Bell, Menu, Home, ClipboardList, CheckSquare, Trophy, ChevronRight,
-  Sparkles,
+  Sparkles, UserCheck, Zap,
 } from "lucide-react";
 
 function NavDropdown({ trigger, children }) {
@@ -69,6 +71,81 @@ function MobileLink({ href, icon: Icon, label, onClick }) {
         <span className="text-sm font-medium">{label}</span>
       </div>
     </Link>
+  );
+}
+
+const EMPLOYER_MOCK_NOTIFICATIONS = [
+  { id: 1, type: "match", icon: UserCheck, color: "text-green-600", bg: "bg-green-50 dark:bg-green-900/20", title: "95% Resume Match!", desc: "Priya Sharma matched your React Developer role", jobTitle: "React Developer", time: "2 min ago", href: "/employer/applications" },
+  { id: 2, type: "match", icon: Zap, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-900/20", title: "New Application — 88% Match", desc: "Rahul Gupta applied to Data Scientist", jobTitle: "Data Scientist", time: "15 min ago", href: "/employer/applications" },
+  { id: 3, type: "match", icon: Star, color: "text-yellow-600", bg: "bg-yellow-50 dark:bg-yellow-900/20", title: "Top Candidate Alert!", desc: "Amit Kumar is a 92% match for DevOps Engineer", jobTitle: "DevOps Engineer", time: "1 hr ago", href: "/employer/applications" },
+  { id: 4, type: "match", icon: Users, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-900/20", title: "3 New Applicants Today", desc: "Your Product Manager role got 3 new applications", jobTitle: "Product Manager", time: "3 hrs ago", href: "/employer/applications" },
+];
+
+const CANDIDATE_MOCK_NOTIFICATIONS = [
+  { id: 1, icon: CheckSquare, color: "text-teal-600", bg: "bg-teal-50 dark:bg-teal-900/20", title: "Interview Scheduled!", desc: "TCS Digital invited you for interview", time: "1 hr ago", href: "/applications" },
+  { id: 2, icon: Star, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-900/20", title: "You were shortlisted!", desc: "Infosys shortlisted you for Data Analyst", time: "3 hrs ago", href: "/applications" },
+  { id: 3, icon: FileText, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-900/20", title: "Application Reviewed", desc: "Wipro reviewed your application", time: "5 hrs ago", href: "/applications" },
+];
+
+function NotificationBell({ isCandidate, isEmployer }) {
+  const [open, setOpen] = useState(false);
+  const [, setLocation] = useLocation();
+  const notifications = isEmployer ? EMPLOYER_MOCK_NOTIFICATIONS : CANDIDATE_MOCK_NOTIFICATIONS;
+  const unreadCount = notifications.length;
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8 relative">
+          <Bell className="w-4 h-4" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+              {unreadCount}
+            </span>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80 p-0 shadow-xl" sideOffset={8}>
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20">
+          <h3 className="font-semibold text-sm">Notifications</h3>
+          <span className="text-[10px] bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-medium">{unreadCount} new</span>
+        </div>
+        <div className="max-h-80 overflow-y-auto divide-y divide-border">
+          {notifications.map((notif) => {
+            const Icon = notif.icon;
+            return (
+              <div
+                key={notif.id}
+                onClick={() => { setLocation(notif.href); setOpen(false); }}
+                className="flex items-start gap-3 px-4 py-3 hover:bg-muted/40 cursor-pointer transition-colors"
+              >
+                <div className={`w-8 h-8 rounded-full ${notif.bg} flex items-center justify-center shrink-0 mt-0.5`}>
+                  <Icon className={`w-4 h-4 ${notif.color}`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-foreground leading-tight">{notif.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{notif.desc}</p>
+                  {notif.jobTitle && (
+                    <span className="inline-block mt-1 text-[10px] bg-primary/8 text-primary px-2 py-0.5 rounded-full font-medium">
+                      {notif.jobTitle}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] text-muted-foreground shrink-0 mt-1">{notif.time}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="px-4 py-2.5 border-t bg-muted/10">
+          <button
+            onClick={() => { setLocation(isEmployer ? "/employer/applications" : "/applications"); setOpen(false); }}
+            className="w-full text-center text-xs text-primary hover:underline font-medium"
+          >
+            View all {isEmployer ? "applications" : "notifications"} →
+          </button>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -174,8 +251,8 @@ export function NavBar() {
             }>
               <NavItem href="/employer/jobs/new" icon={Plus} label="Post a Job" desc="Create new listing" />
               <NavItem href="/employer/jobs" icon={Briefcase} label="Manage Jobs" desc="Edit/delete postings" />
-              <NavItem href="/employer/jobs" icon={Users} label="View Applications" desc="Review candidates" />
-              <NavItem href="/employer/jobs" icon={Sparkles} label="AI Resume Filter" desc="Rank by fit score" />
+              <NavItem href="/employer/applications" icon={Users} label="View Applications" desc="All candidates across jobs" />
+              <NavItem href="/employer/applications" icon={Sparkles} label="AI Resume Filter" desc="Rank candidates by fit score" />
               <DropdownMenuSeparator />
               <NavItem href="/employer/dashboard" icon={LayoutDashboard} label="Employer Dashboard" />
               <NavItem href="/employer/profile" icon={Building2} label="Company Profile" />
@@ -204,10 +281,8 @@ export function NavBar() {
 
           {user ? (
             <>
-              <Button variant="ghost" size="icon" className="h-8 w-8 relative" onClick={() => setLocation(isCandidate ? "/applications" : "/employer/jobs")}>
-                <Bell className="w-4 h-4" />
-                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary" />
-              </Button>
+              <NotificationBell isCandidate={isCandidate} isEmployer={isEmployer} />
+
 
               <NavDropdown trigger={
                 <Button variant="ghost" size="sm" className="gap-2 ml-1">
@@ -325,6 +400,7 @@ export function NavBar() {
                     <MobileLink href="/employer/dashboard" icon={LayoutDashboard} label="Dashboard" onClick={close} />
                     <MobileLink href="/employer/jobs/new" icon={Plus} label="Post a Job" onClick={close} />
                     <MobileLink href="/employer/jobs" icon={Briefcase} label="Manage Jobs" onClick={close} />
+                    <MobileLink href="/employer/applications" icon={Users} label="View Applications" onClick={close} />
                     <MobileLink href="/employer/profile" icon={Building2} label="Company Profile" onClick={close} />
                   </MobileSection>
                 )}

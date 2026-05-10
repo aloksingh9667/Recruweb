@@ -26,6 +26,7 @@ import InterviewPrep from "@/pages/InterviewPrep";
 import JobMatch from "@/pages/JobMatch";
 import SavedJobs from "@/pages/SavedJobs";
 import ApplicationsPage from "@/pages/ApplicationsPage";
+import AllApplicationsPage from "@/pages/AllApplicationsPage";
 import HelpPage from "@/pages/HelpPage";
 import ProfileSettings from "@/pages/ProfileSettings";
 
@@ -89,6 +90,9 @@ function App() {
                     </Route>
                     <Route path="/employer/jobs/:jobId/applications">
                       <ProtectedRoute component={JobApplications} allowedRole="employer" />
+                    </Route>
+                    <Route path="/employer/applications">
+                      <ProtectedRoute component={AllApplicationsPage} allowedRole="employer" />
                     </Route>
                     <Route path="/employer/profile">
                       <ProtectedRoute component={EmployerProfile} allowedRole="employer" />
