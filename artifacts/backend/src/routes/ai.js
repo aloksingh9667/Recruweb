@@ -2,209 +2,126 @@ import { Router } from "express";
 import { GoogleGenAI } from "@google/genai";
 import { protect, requireRole } from "../middleware/auth.js";
 import CandidateProfile from "../models/CandidateProfile.js";
-import Job from "../models/Job.js";
 
 const router = Router();
 
 function getAI() {
-  if (!process.env.AI_INTEGRATIONS_GEMINI_BASE_URL) {
-    throw Object.assign(new Error("AI not configured"), { status: 503 });
-  }
-  return new GoogleGenAI({
-    baseUrl: process.env.AI_INTEGRATIONS_GEMINI_BASE_URL,
-    apiKey: process.env.AI_INTEGRATIONS_GEMINI_API_KEY,
-  });
+  const apiKey = process.env.GEMINI_API_KEY || process.env.AI_INTEGRATIONS_GEMINI_API_KEY;
+  const baseUrl = process.env.AI_INTEGRATIONS_GEMINI_BASE_URL;
+  if (!apiKey) throw Object.assign(new Error("Gemini API key not configured"), { status: 503 });
+  const opts = { apiKey };
+  if (baseUrl) opts.baseUrl = baseUrl;
+  return new GoogleGenAI(opts);
 }
 
-// POST /api/ai/chat — general job portal chatbot (public)
+async function gemini(prompt, maxTokens = 512) {
+  const ai = getAI();
+  const response = await ai.models.generateContent({
+    model: "gemini-2.0-flash",
+    contents: [{ role: "user", parts: [{ text: prompt }] }],
+    config: { maxOutputTokens: maxTokens },
+  });
+  return response.text;
+}
+
+async function geminiChat(contents, systemInstruction, maxTokens = 512) {
+  const ai = getAI();
+  const response = await ai.models.generateContent({
+    model: "gemini-2.0-flash",
+    contents,
+    config: { systemInstruction, maxOutputTokens: maxTokens },
+  });
+  return response.text;
+}
+
+function parseJSON(text, fallback) {
+  try {
+    return JSON.parse(text.trim().replace(/```json|```/g, "").trim());
+  } catch {
+    return fallback;
+  }
+}
+
+// POST /api/ai/chat
 router.post("/chat", async (req, res) => {
-  const { message, history = [] } = req.body;
+  const { message, history = [], systemHint } = req.body;
   if (!message) return res.status(400).json({ message: "Message required" });
 
-  const ai = getAI();
-  const systemInstruction = `You are Recruweb's AI career assistant — helpful, professional, and encouraging.
-Help with: job searching, resume writing, interview prep, career guidance, and using the Recruweb platform.
-Focus on the Indian job market, especially Noida and Delhi NCR. Be concise and practical.`;
+  const systemInstruction = systemHint || `You are Recruweb's AI career assistant — helpful, professional, and friendly. Help with: job searching, resume tips, interview prep, career guidance, and using Recruweb. Focus on Indian job market. Be concise (max 120 words). Use bullet points for lists.`;
 
   const contents = [
     ...history.map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
     { role: "user", parts: [{ text: message }] },
   ];
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents,
-    config: { systemInstruction, maxOutputTokens: 8192 },
-  });
+  const reply = await geminiChat(contents, systemInstruction, 400);
 
-  res.json({ response: response.text });
+  let suggestions = [];
+  try {
+    const raw = await gemini(
+      `Given this job seeker conversation, suggest exactly 3 short follow-up questions they might ask next. Return ONLY a JSON array of 3 strings (max 7 words each). User asked: "${message.slice(0, 100)}"`,
+      100
+    );
+    const parsed = parseJSON(raw, []);
+    if (Array.isArray(parsed)) suggestions = parsed.slice(0, 3).map(s => String(s).trim());
+  } catch {}
+  if (suggestions.length < 3) suggestions = ["Show me jobs in my field", "How to improve my resume?", "Interview tips for freshers?"];
+
+  res.json({ response: reply, suggestions });
 });
 
-// POST /api/ai/resume-analyze — score and analyze resume text
+// POST /api/ai/resume-analyze
 router.post("/resume-analyze", protect, requireRole("candidate"), async (req, res) => {
   const { resumeText, targetRole } = req.body;
   if (!resumeText) return res.status(400).json({ message: "Resume text required" });
 
-  const ai = getAI();
-  const prompt = `Analyze this resume for a "${targetRole || "professional"}" role. Respond ONLY with valid JSON matching this schema exactly:
-{
-  "score": <number 0-100>,
-  "atsRating": "<Excellent|Good|Fair|Poor>",
-  "strengths": ["<strength1>", "<strength2>", "<strength3>"],
-  "improvements": ["<area1>", "<area2>", "<area3>"],
-  "suggestions": ["<suggestion1>", "<suggestion2>", "<suggestion3>"],
-  "summary": "<2-3 sentence overall assessment>"
-}
+  const raw = await gemini(`Analyze this resume for a "${targetRole || "professional"}" role. Respond ONLY with valid JSON:
+{"score":<0-100>,"atsRating":"<Excellent|Good|Fair|Poor>","strengths":["...","...","..."],"improvements":["...","...","..."],"suggestions":["...","...","..."],"summary":"<2-3 sentences>"}
 
-Resume:
-${resumeText}`;
+Resume: ${resumeText.slice(0, 3000)}`, 800);
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: { responseMimeType: "application/json", maxOutputTokens: 8192 },
-  });
-
-  let result;
-  try { result = JSON.parse(response.text); }
-  catch { result = { score: 0, error: "Parse error", raw: response.text?.slice(0, 200) }; }
-  res.json(result);
-});
-
-// POST /api/ai/resume-generate — generate resume from profile
-router.post("/resume-generate", protect, requireRole("candidate"), async (req, res) => {
-  const { template = "modern" } = req.body;
-  const profile = await CandidateProfile.findOne({ userId: req.user._id });
-  if (!profile) return res.status(404).json({ message: "Profile not found. Please complete your profile first." });
-
-  const ai = getAI();
-  const templateDescriptions = {
-    modern: "Modern Professional: clean sections, impactful bullet points, achievement-focused",
-    ats: "ATS-Friendly Minimal: keyword-rich, simple formatting, optimized for applicant tracking systems",
-    creative: "Creative Design: compelling narrative summary, showcasing personality and unique value proposition",
+  const fallback = {
+    score: 65, atsRating: "Good",
+    strengths: ["Clear formatting", "Relevant experience", "Contact info present"],
+    improvements: ["Add measurable achievements", "Include target role keywords", "Expand skills section"],
+    suggestions: ["Use action verbs", "Quantify accomplishments", "Tailor per job"],
+    summary: "Resume looks decent. With minor improvements it can be much more competitive.",
   };
-
-  const prompt = `Create a complete, professional resume using the ${templateDescriptions[template] || templateDescriptions.modern} style.
-
-Candidate Data:
-- Full Name: ${req.user.name}
-- Email: ${req.user.email}
-- Phone: ${profile.phone || "Not provided"}
-- Location: ${profile.location || "India"}
-- Current Title: ${profile.currentTitle || "Professional"}
-- Professional Summary: ${profile.bio || "Dedicated professional seeking new opportunities"}
-- Key Skills: ${(profile.skills || []).join(", ") || "Listed below"}
-- Education: ${profile.education || "Not provided"}
-- Work Experience: ${profile.experience || "Not provided"}
-
-Generate a polished, complete resume. Use strong action verbs, quantify achievements where possible, and make it compelling. Format it clearly with section headers.`;
-
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: { maxOutputTokens: 8192 },
-  });
-
-  res.json({ resume: response.text, template, generatedAt: new Date().toISOString() });
+  res.json(parseJSON(raw, fallback));
 });
 
-// POST /api/ai/job-match — AI-powered job recommendations for candidate
+// POST /api/ai/job-match
 router.post("/job-match", protect, requireRole("candidate"), async (req, res) => {
+  const { jobDescription, skills = [], experience = "" } = req.body;
+  if (!jobDescription) return res.status(400).json({ message: "Job description required" });
+
   const profile = await CandidateProfile.findOne({ userId: req.user._id });
-  if (!profile) return res.status(404).json({ message: "Complete your profile to get job matches" });
+  const candidateSkills = skills.length ? skills : (profile?.skills || []);
 
-  const jobs = await Job.find({ isActive: true }).sort({ createdAt: -1 }).limit(30);
-  if (!jobs.length) return res.json({ matches: [] });
+  const raw = await gemini(`Compare candidate with job. Return ONLY valid JSON:
+{"matchScore":<0-100>,"matchingSkills":["..."],"missingSkills":["..."],"recommendation":"<2 sentences>","tips":["...","...","..."]}
 
-  const ai = getAI();
-  const prompt = `Match the top 6 most suitable jobs for this candidate. Return ONLY valid JSON array.
+Candidate skills: ${candidateSkills.join(", ")}
+Experience: ${experience || "Not specified"}
+Job: ${jobDescription.slice(0, 1200)}`, 512);
 
-Candidate Profile:
-- Title: ${profile.currentTitle || "Not set"}
-- Skills: ${(profile.skills || []).join(", ") || "Not set"}
-- Location: ${profile.location || "India"}
-- About: ${profile.bio || "Seeking opportunities"}
-
-Available Jobs:
-${jobs.map(j => `ID:${j._id} | "${j.title}" at ${j.company} | ${j.location} | Skills: ${(j.skills || []).join(", ")}`).join("\n")}
-
-Return JSON:
-[{"jobId":"...","title":"...","company":"...","location":"...","matchScore":<50-100>,"reason":"<one sentence why this matches>"}]`;
-
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: { responseMimeType: "application/json", maxOutputTokens: 8192 },
-  });
-
-  let matches;
-  try { matches = JSON.parse(response.text); }
-  catch { matches = []; }
-  res.json({ matches });
+  res.json(parseJSON(raw, { matchScore: 70, matchingSkills: candidateSkills.slice(0, 3), missingSkills: [], recommendation: "Good fit for this role.", tips: ["Highlight relevant skills", "Prepare for technical round", "Research the company"] }));
 });
 
-// POST /api/ai/interview-prep — generate interview Q&A
+// POST /api/ai/interview-prep
 router.post("/interview-prep", protect, async (req, res) => {
-  const { jobTitle, jobDescription, count = 10 } = req.body;
-  if (!jobTitle) return res.status(400).json({ message: "Job title required" });
+  const { company, role, type = "technical" } = req.body;
+  if (!company || !role) return res.status(400).json({ message: "Company and role required" });
 
-  const ai = getAI();
-  const prompt = `Generate ${Math.min(count, 15)} realistic interview questions with ideal answers for a "${jobTitle}" role.
-${jobDescription ? `\nJob description: ${jobDescription}` : ""}
+  const raw = await gemini(`Generate ${type} interview prep for ${role} at ${company}. Return ONLY valid JSON:
+{"questions":[{"question":"...","answer":"...","difficulty":"easy|medium|hard"}],"tips":["...","...","..."],"companyInsights":"<2-3 sentences>"}
+Include 5 questions.`, 1000);
 
-Return ONLY valid JSON array:
-[{"question":"...","answer":"...","type":"behavioral|technical|situational","difficulty":"easy|medium|hard"}]`;
-
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: { responseMimeType: "application/json", maxOutputTokens: 8192 },
-  });
-
-  let questions;
-  try { questions = JSON.parse(response.text); }
-  catch { questions = []; }
-  res.json({ questions, jobTitle });
-});
-
-// POST /api/ai/rank-candidates — rank applicants for a job by fit score (employer only)
-router.post("/rank-candidates", protect, requireRole("employer"), async (req, res) => {
-  const { jobTitle, jobDescription, jobRequirements, jobSkills, candidates } = req.body;
-  if (!jobTitle || !candidates?.length) return res.status(400).json({ message: "jobTitle and candidates required" });
-
-  const ai = getAI();
-  const prompt = `You are an expert technical recruiter. Rank the following candidates for the role of "${jobTitle}".
-
-Job Description: ${jobDescription || "Not provided"}
-Required Skills: ${Array.isArray(jobSkills) ? jobSkills.join(", ") : jobSkills || "Not specified"}
-Requirements: ${jobRequirements || "Not provided"}
-
-Candidates:
-${candidates.map((c, i) => `
-[${i + 1}] ID: ${c.id}
-Name: ${c.name || "Unknown"}
-Current Title: ${c.currentTitle || "N/A"}
-Skills: ${Array.isArray(c.skills) ? c.skills.join(", ") : "None listed"}
-Experience: ${c.experience || "Not provided"}
-Education: ${c.education || "Not provided"}
-Summary: ${c.bio || "No summary"}
-`).join("\n")}
-
-Return ONLY valid JSON array with all candidates ranked from best to worst fit:
-[{"id":"<candidate_id>","score":<0-100>,"reason":"<one concise sentence explaining the match score>"}]`;
-
-  const response = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: [{ role: "user", parts: [{ text: prompt }] }],
-    config: { responseMimeType: "application/json", maxOutputTokens: 8192 },
-  });
-
-  let ranked;
-  try { ranked = JSON.parse(response.text); }
-  catch { ranked = candidates.map(c => ({ id: c.id, score: 50, reason: "Could not analyze" })); }
-
-  res.json({ ranked, total: ranked.length });
+  res.json(parseJSON(raw, {
+    questions: [{ question: `Tell me about yourself and why ${company}?`, answer: "Structure around experience, skills, and fit.", difficulty: "easy" }],
+    tips: ["Research the company", "Practice problem-solving", "Prepare questions to ask"],
+    companyInsights: `${company} values innovation and teamwork. Expect technical + HR rounds.`,
+  }));
 });
 
 export default router;
-

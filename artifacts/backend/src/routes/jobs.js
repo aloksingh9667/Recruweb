@@ -5,6 +5,16 @@ import { protect, requireRole } from "../middleware/auth.js";
 
 const router = Router();
 
+const JOB_FIELDS = [
+  "title", "location", "category", "employmentType", "description",
+  "requirements", "salaryRange", "skills", "experienceRequired",
+  "openings", "industry", "department", "roleCategory", "role",
+  "education", "shiftTiming", "workingDays", "keyResponsibilities",
+  "companyDescription", "companyWebsite", "companySize", "companyAddress",
+  "companyRating", "companyReviews", "perks", "screeningQuestions",
+  "contactEmail", "contactPhone", "isActive",
+];
+
 // GET /api/jobs — public
 router.get("/", async (req, res) => {
   const { search, location, category, employmentType, page = 1, limit = 10 } = req.query;
@@ -49,7 +59,6 @@ router.get("/stats/summary", async (req, res) => {
     ]),
     Job.find({ isActive: true }).sort({ createdAt: -1 }).limit(5),
   ]);
-
   res.json({ totalJobs, byCategory, byType, recentJobs: recentJobs.map((j) => j.toJSON()) });
 });
 
@@ -65,24 +74,37 @@ router.get("/saved/my", protect, requireRole("candidate"), async (req, res) => {
   res.json({ jobs: jobs.map((j) => j.toJSON()), total: jobs.length });
 });
 
-// GET /api/jobs/:jobId
+// GET /api/jobs/:jobId — with employer profile enrichment
 router.get("/:jobId", async (req, res) => {
   const job = await Job.findById(req.params.jobId);
   if (!job) return res.status(404).json({ message: "Job not found" });
-  res.json(job.toJSON());
+
+  const jobData = job.toJSON();
+
+  const empProfile = await EmployerProfile.findOne({ userId: job.employerId });
+  if (empProfile) {
+    jobData.employer = {
+      company: empProfile.company || jobData.company,
+      industry: empProfile.industry,
+      companySize: empProfile.size,
+      website: empProfile.website,
+      description: empProfile.description,
+      location: empProfile.location,
+    };
+  }
+
+  res.json(jobData);
 });
 
 // POST /api/jobs — employer only
 router.post("/", protect, requireRole("employer"), async (req, res) => {
-  const { title, location, category, employmentType, description, requirements, salaryRange, skills } = req.body;
   const profile = await EmployerProfile.findOne({ userId: req.user._id });
-  const company = profile?.company || req.user.name;
+  const company = req.body.company || profile?.company || req.user.name;
 
-  const job = await Job.create({
-    title, location, category, employmentType, description,
-    requirements, salaryRange, skills, company,
-    employerId: req.user._id,
-  });
+  const jobData = { company, employerId: req.user._id };
+  JOB_FIELDS.forEach(f => { if (req.body[f] !== undefined) jobData[f] = req.body[f]; });
+
+  const job = await Job.create(jobData);
   res.status(201).json(job.toJSON());
 });
 
@@ -91,7 +113,8 @@ router.put("/:jobId", protect, requireRole("employer"), async (req, res) => {
   const job = await Job.findOne({ _id: req.params.jobId, employerId: req.user._id });
   if (!job) return res.status(404).json({ message: "Job not found" });
 
-  Object.assign(job, req.body);
+  JOB_FIELDS.forEach(f => { if (req.body[f] !== undefined) job[f] = req.body[f]; });
+  if (req.body.company) job.company = req.body.company;
   await job.save();
   res.json(job.toJSON());
 });

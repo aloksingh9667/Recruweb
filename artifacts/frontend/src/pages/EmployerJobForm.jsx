@@ -12,22 +12,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { Check, ChevronRight, X, Plus, Briefcase, Phone } from "lucide-react";
+import { Check, X, Plus, Briefcase, Building2, MapPin, GraduationCap, Clock, Calendar, Users, Globe, Star } from "lucide-react";
 import { Link } from "wouter";
 
 const STEPS = [
-  { id: 1, label: "Job details" },
-  { id: 2, label: "Candidate preferences" },
-  { id: 3, label: "Screening questions" },
-  { id: 4, label: "Job description" },
-  { id: 5, label: "Communication preferences" },
+  { id: 1, label: "Job Details", icon: Briefcase },
+  { id: 2, label: "Candidate Requirements", icon: GraduationCap },
+  { id: 3, label: "Role Information", icon: Building2 },
+  { id: 4, label: "Job Description", icon: Briefcase },
+  { id: 5, label: "Company Info", icon: Building2 },
 ];
 
 const PERKS = [
-  "Office cab/shuttle", "Food allowance", "Health insurance",
-  "Annual bonus", "Provident fund", "Flexible working hours",
-  "Work from home", "5 days working", "Laptop provided",
-  "Performance bonus", "Paid leaves", "Gratuity",
+  "Health insurance", "Annual bonus", "Provident fund", "Flexible working hours",
+  "Work from home", "5 days working", "Laptop provided", "Performance bonus",
+  "Paid leaves", "Office cab/shuttle", "Food allowance", "Gratuity",
 ];
 
 const CATEGORIES = [
@@ -37,42 +36,68 @@ const CATEGORIES = [
   "Engineering (Non-IT)", "Education & Training", "Legal & Compliance", "Other",
 ];
 
+const INDUSTRIES = [
+  "IT Services & Consulting", "Software Product", "Internet / E-commerce",
+  "Banking / Financial Services", "Insurance", "BPO / Call Centre",
+  "Telecom / ISP", "Retail", "Manufacturing", "Healthcare / Pharma",
+  "Education / EdTech", "Real Estate", "FMCG", "Automobile", "Other",
+];
+
+const DEPARTMENTS = [
+  "IT & Information Security", "Software Development", "Data Science & Analytics",
+  "Sales & Business Development", "Marketing & Communications", "Finance & Accounting",
+  "Human Resources", "Operations", "Customer Success", "Design & UX",
+  "Legal & Compliance", "Administration", "Other",
+];
+
+const ROLE_CATEGORIES = [
+  "Software Engineer", "IT Support", "Data Scientist", "Product Manager",
+  "Business Development", "Sales Executive", "Marketing Manager",
+  "HR Manager", "Finance Manager", "Operations Manager", "Other",
+];
+
 const EDUCATION = [
   "Any Graduate", "B.Tech/B.E.", "MBA/PGDM", "B.Sc", "BCA", "MCA",
   "M.Tech", "B.Com", "12th Pass", "10th Pass", "Any Post Graduate",
 ];
 
-const EXP_OPTIONS = [
-  "Fresher", "1", "2", "3", "4", "5", "6", "7", "8", "10", "12", "15", "20+"
+const COMPANY_SIZES = [
+  "1-10 employees", "11-50 employees", "51-200 employees",
+  "201-500 employees", "501-1000 employees", "1001-5000 employees",
+  "5000+ employees",
 ];
 
-const jobSchema = z.object({
-  // Step 1
-  postingType: z.string().default("company"),
+const EXP_OPTIONS = ["Fresher", "1", "2", "3", "4", "5", "6", "7", "8", "10", "12", "15", "20+"];
+
+const schema = z.object({
   companyName: z.string().min(2, "Company name required"),
   title: z.string().min(2, "Job title required"),
   expMin: z.string().default("Fresher"),
   expMax: z.string().default("3"),
   salaryMin: z.string().optional(),
   salaryMax: z.string().optional(),
-  perks: z.array(z.string()).default([]),
-  // Step 2
+  openings: z.string().default("1"),
   location: z.string().min(2, "Location required"),
-  category: z.string().min(2, "Category required"),
+  category: z.string().min(1, "Category required"),
   employmentType: z.string().default("full-time"),
   education: z.string().optional(),
   skills: z.string().optional(),
-  // Step 3 — screening questions (stored as text)
-  screeningQ1: z.string().optional(),
-  screeningQ2: z.string().optional(),
-  screeningQ3: z.string().optional(),
-  // Step 4
+  industry: z.string().optional(),
+  department: z.string().optional(),
+  roleCategory: z.string().optional(),
+  role: z.string().optional(),
+  shiftTiming: z.string().optional(),
+  workingDays: z.string().optional(),
+  keyResponsibilities: z.string().optional(),
   description: z.string().min(10, "Job description required"),
   requirements: z.string().optional(),
-  // Step 5
-  contactEmail: z.string().email("Valid email required").optional().or(z.literal("")),
+  companyDescription: z.string().optional(),
+  companyWebsite: z.string().optional(),
+  companySize: z.string().optional(),
+  companyAddress: z.string().optional(),
+  companyRating: z.string().optional(),
+  contactEmail: z.string().optional(),
   contactPhone: z.string().optional(),
-  notifyMethod: z.string().default("email"),
 });
 
 export default function EmployerJobForm() {
@@ -84,6 +109,8 @@ export default function EmployerJobForm() {
   const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedPerks, setSelectedPerks] = useState([]);
+  const [skillInput, setSkillInput] = useState("");
+  const [skillsList, setSkillsList] = useState([]);
   const [customPerk, setCustomPerk] = useState("");
 
   const { data: job, isLoading } = useQuery({
@@ -93,39 +120,56 @@ export default function EmployerJobForm() {
   });
 
   const form = useForm({
-    resolver: zodResolver(jobSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
-      postingType: "company",
       companyName: user?.company || "",
       title: "", expMin: "Fresher", expMax: "3",
-      salaryMin: "", salaryMax: "", perks: [],
-      location: "", category: "", employmentType: "full-time", education: "", skills: "",
-      screeningQ1: "", screeningQ2: "", screeningQ3: "",
-      description: "", requirements: "",
-      contactEmail: user?.email || "", contactPhone: "", notifyMethod: "email",
+      salaryMin: "", salaryMax: "", openings: "1",
+      location: "", category: "", employmentType: "full-time",
+      education: "", skills: "",
+      industry: "", department: "", roleCategory: "", role: "",
+      shiftTiming: "", workingDays: "",
+      keyResponsibilities: "", description: "", requirements: "",
+      companyDescription: "", companyWebsite: "", companySize: "", companyAddress: "",
+      companyRating: "", contactEmail: user?.email || "", contactPhone: "",
     },
   });
 
   useEffect(() => {
     if (job) {
+      const expParts = (job.experienceRequired || "Fresher - 3 yrs").split("-");
       form.reset({
-        postingType: "company",
         companyName: job.company || user?.company || "",
         title: job.title || "",
-        expMin: "Fresher", expMax: "5",
+        expMin: expParts[0]?.trim() || "Fresher",
+        expMax: expParts[1]?.replace(/yrs?/i, "").trim() || "3",
         salaryMin: "", salaryMax: "",
-        perks: [], location: job.location || "",
+        openings: String(job.openings || 1),
+        location: job.location || "",
         category: job.category || "",
-        employmentType: job.type?.toLowerCase() || "full-time",
-        education: "", skills: job.skills?.join(", ") || "",
-        screeningQ1: "", screeningQ2: "", screeningQ3: "",
+        employmentType: job.employmentType || "full-time",
+        education: job.education || "",
+        industry: job.industry || "",
+        department: job.department || "",
+        roleCategory: job.roleCategory || "",
+        role: job.role || "",
+        shiftTiming: job.shiftTiming || "",
+        workingDays: job.workingDays || "",
+        keyResponsibilities: job.keyResponsibilities || "",
         description: job.description || "",
-        requirements: job.requirements?.join("\n") || "",
-        contactEmail: user?.email || "", contactPhone: "", notifyMethod: "email",
+        requirements: job.requirements || "",
+        companyDescription: job.companyDescription || "",
+        companyWebsite: job.companyWebsite || "",
+        companySize: job.companySize || "",
+        companyAddress: job.companyAddress || "",
+        companyRating: String(job.companyRating || ""),
+        contactEmail: job.contactEmail || user?.email || "",
+        contactPhone: job.contactPhone || "",
       });
-      setSelectedPerks([]);
+      setSelectedPerks(job.perks || []);
+      setSkillsList(job.skills || []);
     }
-  }, [job, user]);
+  }, [job]);
 
   const mutation = useMutation({
     mutationFn: (data) => fetchApi(isEditing ? `/jobs/${jobId}` : "/jobs", {
@@ -134,17 +178,19 @@ export default function EmployerJobForm() {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["employerJobs"] });
-      toast({ title: `Job ${isEditing ? "updated" : "posted"} successfully! 🎉`, description: "Your job listing is now live." });
+      toast({ title: `Job ${isEditing ? "updated" : "posted"} successfully!`, description: "Your listing is now live." });
       setLocation("/employer/jobs");
     },
-    onError: (err) => {
-      toast({ title: "Failed to post job", description: err.message, variant: "destructive" });
-    },
+    onError: (err) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
   });
 
-  const togglePerk = (perk) => {
-    setSelectedPerks(prev => prev.includes(perk) ? prev.filter(p => p !== perk) : [...prev, perk]);
+  const addSkill = () => {
+    const s = skillInput.trim();
+    if (s && !skillsList.includes(s)) setSkillsList(prev => [...prev, s]);
+    setSkillInput("");
   };
+  const removeSkill = (s) => setSkillsList(prev => prev.filter(x => x !== s));
+  const togglePerk = (p) => setSelectedPerks(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
   const addCustomPerk = () => {
     if (customPerk.trim() && !selectedPerks.includes(customPerk.trim())) {
       setSelectedPerks(prev => [...prev, customPerk.trim()]);
@@ -163,70 +209,81 @@ export default function EmployerJobForm() {
     return form.trigger(fields[step]);
   };
 
-  const nextStep = async () => {
-    const valid = await validateStep(currentStep);
-    if (valid && currentStep < 5) setCurrentStep(s => s + 1);
-  };
-
   const onSubmit = (data) => {
     const expStr = data.expMin === "Fresher" ? `Fresher - ${data.expMax} yrs` : `${data.expMin} - ${data.expMax} yrs`;
     const salaryStr = data.salaryMin && data.salaryMax ? `₹${data.salaryMin}K - ₹${data.salaryMax}K/month` : undefined;
-    const payload = {
+    mutation.mutate({
       title: data.title,
       company: data.companyName,
       location: data.location,
-      type: data.employmentType,
+      employmentType: data.employmentType,
       category: data.category,
       description: data.description,
-      experience: expStr,
-      salary: salaryStr,
-      requirements: data.requirements ? data.requirements.split("\n").filter(Boolean) : [],
-      skills: data.skills ? data.skills.split(",").map(s => s.trim()).filter(Boolean) : [],
+      keyResponsibilities: data.keyResponsibilities,
+      requirements: data.requirements,
+      experienceRequired: expStr,
+      salaryRange: salaryStr,
+      openings: parseInt(data.openings) || 1,
+      skills: skillsList,
       perks: selectedPerks,
-    };
-    mutation.mutate(payload);
+      industry: data.industry,
+      department: data.department,
+      roleCategory: data.roleCategory,
+      role: data.role || data.title,
+      education: data.education,
+      shiftTiming: data.shiftTiming,
+      workingDays: data.workingDays,
+      companyDescription: data.companyDescription,
+      companyWebsite: data.companyWebsite,
+      companySize: data.companySize,
+      companyAddress: data.companyAddress,
+      companyRating: data.companyRating ? parseFloat(data.companyRating) : undefined,
+      contactEmail: data.contactEmail,
+      contactPhone: data.contactPhone,
+    });
   };
 
   if (isEditing && isLoading) return (
     <div className="min-h-[60vh] flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-muted-foreground text-sm">Loading job...</p>
-      </div>
+      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
+  const StepIcon = STEPS[currentStep - 1]?.icon || Briefcase;
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-muted/30">
       {/* Top bar */}
-      <div className="bg-white dark:bg-gray-900 border-b shadow-sm sticky top-14 z-40">
+      <div className="bg-card border-b shadow-sm sticky top-14 z-40">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/employer/jobs">
-              <button className="text-muted-foreground hover:text-foreground transition-colors">
-                <X className="w-5 h-5" />
-              </button>
+              <button className="text-muted-foreground hover:text-foreground transition-colors p-1"><X className="w-5 h-5" /></button>
             </Link>
             <div className="flex items-center gap-2">
               <Briefcase className="w-5 h-5 text-primary" />
-              <span className="font-bold text-base text-gray-900 dark:text-white">
-                Post a job <span className="text-xs font-normal bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full ml-1">Free</span>
+              <span className="font-bold text-base">
+                {isEditing ? "Edit Job" : "Post a Job"}
+                <span className="text-xs font-normal bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full ml-2">Free</span>
               </span>
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
-            <Phone className="w-3.5 h-3.5" />
-            <span>1800-102-2558</span>
-          </div>
+          <span className="text-sm text-muted-foreground hidden sm:block">Step {currentStep} of {STEPS.length}</span>
+        </div>
+
+        {/* Step progress bar */}
+        <div className="h-1 bg-muted">
+          <div className="h-full bg-primary transition-all duration-300" style={{ width: `${(currentStep / STEPS.length) * 100}%` }} />
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8 max-w-5xl">
-        <div className="flex gap-8">
-          {/* Sidebar Steps */}
+      <div className="container mx-auto px-4 py-6 max-w-5xl">
+        <div className="flex gap-6">
+          {/* Sidebar */}
           <div className="hidden md:block w-52 shrink-0">
-            <div className="bg-white dark:bg-gray-900 rounded-xl border shadow-sm overflow-hidden sticky top-36">
-              {STEPS.map((step, idx) => {
+            <div className="bg-card rounded-xl border shadow-sm overflow-hidden sticky top-32">
+              {STEPS.map((step) => {
+                const Icon = step.icon;
                 const isCompleted = currentStep > step.id;
                 const isCurrent = currentStep === step.id;
                 return (
@@ -234,23 +291,16 @@ export default function EmployerJobForm() {
                     key={step.id}
                     onClick={() => { if (isCompleted || isCurrent) setCurrentStep(step.id); }}
                     className={`w-full flex items-center gap-3 px-4 py-3.5 text-left transition-all border-b last:border-b-0 ${
-                      isCurrent
-                        ? "bg-primary/5 border-l-4 border-l-primary"
-                        : isCompleted
-                        ? "hover:bg-muted/50 cursor-pointer"
-                        : "opacity-50 cursor-not-allowed"
+                      isCurrent ? "bg-primary/5 border-l-4 border-l-primary" :
+                      isCompleted ? "hover:bg-muted/50 cursor-pointer" : "opacity-40 cursor-not-allowed"
                     }`}
                   >
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-all ${
-                      isCompleted
-                        ? "bg-primary text-white"
-                        : isCurrent
-                        ? "bg-primary text-white"
-                        : "bg-gray-200 dark:bg-gray-700 text-gray-500"
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                      isCompleted ? "bg-primary text-white" : isCurrent ? "bg-primary text-white" : "bg-muted text-muted-foreground"
                     }`}>
-                      {isCompleted ? <Check className="w-3.5 h-3.5" /> : step.id}
+                      {isCompleted ? <Check className="w-3.5 h-3.5" /> : <Icon className="w-3.5 h-3.5" />}
                     </div>
-                    <span className={`text-sm font-medium ${isCurrent ? "text-primary" : isCompleted ? "text-gray-700 dark:text-gray-300" : "text-gray-400"}`}>
+                    <span className={`text-sm font-medium ${isCurrent ? "text-primary" : isCompleted ? "text-foreground" : "text-muted-foreground"}`}>
                       {step.label}
                     </span>
                   </button>
@@ -259,16 +309,18 @@ export default function EmployerJobForm() {
             </div>
           </div>
 
-          {/* Main Form Area */}
+          {/* Form */}
           <div className="flex-1 min-w-0">
-            {/* Mobile Step indicator */}
+            {/* Mobile step pills */}
             <div className="md:hidden flex items-center gap-2 mb-5 overflow-x-auto pb-1">
               {STEPS.map((step, idx) => (
                 <div key={step.id} className="flex items-center gap-1 shrink-0">
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${currentStep > step.id ? "bg-primary text-white" : currentStep === step.id ? "bg-primary text-white ring-4 ring-primary/20" : "bg-gray-200 text-gray-500"}`}>
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                    currentStep > step.id ? "bg-primary text-white" : currentStep === step.id ? "bg-primary text-white ring-4 ring-primary/20" : "bg-muted text-muted-foreground"
+                  }`}>
                     {currentStep > step.id ? <Check className="w-3.5 h-3.5" /> : step.id}
                   </div>
-                  {idx < STEPS.length - 1 && <div className={`w-4 h-0.5 ${currentStep > step.id ? "bg-primary" : "bg-gray-200"}`} />}
+                  {idx < STEPS.length - 1 && <div className={`w-4 h-0.5 ${currentStep > step.id ? "bg-primary" : "bg-muted"}`} />}
                 </div>
               ))}
               <span className="ml-2 text-sm font-medium text-primary">{STEPS[currentStep - 1]?.label}</span>
@@ -276,139 +328,107 @@ export default function EmployerJobForm() {
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)}>
+
                 {/* ── STEP 1: Job Details ── */}
                 {currentStep === 1 && (
-                  <div className="bg-white dark:bg-gray-900 rounded-xl border shadow-sm p-6 space-y-6">
+                  <div className="bg-card rounded-xl border shadow-sm p-5 sm:p-6 space-y-5">
                     <div>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Job details</h2>
+                      <h2 className="text-xl font-bold mb-0.5">Job Details</h2>
                       <p className="text-sm text-muted-foreground">Basic information about the position</p>
-                    </div>
-
-                    {/* Posting Type */}
-                    <div>
-                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">You're posting this job as a:</p>
-                      <div className="flex gap-3">
-                        {["company", "consultancy"].map(type => (
-                          <label key={type} className={`flex items-center gap-2 px-5 py-2.5 rounded-full border-2 cursor-pointer transition-all text-sm font-medium ${form.watch("postingType") === type ? "border-primary bg-primary/5 text-primary" : "border-gray-200 dark:border-gray-600 text-gray-600 hover:border-primary/40"}`}>
-                            <input type="radio" value={type} className="sr-only" {...form.register("postingType")} />
-                            {type === "company" ? "Company/Business" : "Consultancy"}
-                          </label>
-                        ))}
-                      </div>
                     </div>
 
                     <FormField control={form.control} name="companyName" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-semibold">Your company name</FormLabel>
-                        <FormControl><Input placeholder="Company name" className="h-11" {...field} /></FormControl>
+                        <FormLabel className="font-semibold">Company Name *</FormLabel>
+                        <FormControl><Input placeholder="e.g. TCS, Infosys, your company name" className="h-11" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
 
                     <FormField control={form.control} name="title" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-semibold">Job title</FormLabel>
-                        <FormControl><Input placeholder="Ex. Sales manager" className="h-11" {...field} /></FormControl>
+                        <FormLabel className="font-semibold">Job Title *</FormLabel>
+                        <FormControl><Input placeholder="e.g. Senior React Developer, Data Analyst" className="h-11" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
                     )} />
 
-                    {/* Work Experience */}
                     <div>
-                      <label className="text-sm font-semibold block mb-2">Work experience</label>
+                      <label className="text-sm font-semibold block mb-2">Work Experience</label>
                       <div className="flex items-center gap-3">
                         <Select value={form.watch("expMin")} onValueChange={v => form.setValue("expMin", v)}>
-                          <SelectTrigger className="h-11"><SelectValue placeholder="Min exp." /></SelectTrigger>
-                          <SelectContent>
-                            {EXP_OPTIONS.slice(0, -1).map(o => <SelectItem key={o} value={o}>{o === "Fresher" ? "Fresher" : `${o} year${o !== "1" ? "s" : ""}`}</SelectItem>)}
-                          </SelectContent>
+                          <SelectTrigger className="h-11"><SelectValue placeholder="Min" /></SelectTrigger>
+                          <SelectContent>{EXP_OPTIONS.slice(0, -1).map(o => <SelectItem key={o} value={o}>{o === "Fresher" ? "Fresher" : `${o} yr`}</SelectItem>)}</SelectContent>
                         </Select>
                         <span className="text-muted-foreground text-sm shrink-0">to</span>
                         <Select value={form.watch("expMax")} onValueChange={v => form.setValue("expMax", v)}>
-                          <SelectTrigger className="h-11"><SelectValue placeholder="Max exp." /></SelectTrigger>
-                          <SelectContent>
-                            {EXP_OPTIONS.slice(1).map(o => <SelectItem key={o} value={o}>{o === "20+" ? "20+ years" : `${o} year${o !== "1" ? "s" : ""}`}</SelectItem>)}
-                          </SelectContent>
+                          <SelectTrigger className="h-11"><SelectValue placeholder="Max" /></SelectTrigger>
+                          <SelectContent>{EXP_OPTIONS.slice(1).map(o => <SelectItem key={o} value={o}>{o === "20+" ? "20+ yrs" : `${o} yr`}</SelectItem>)}</SelectContent>
                         </Select>
                       </div>
                     </div>
 
-                    {/* Salary */}
                     <div>
-                      <label className="text-sm font-semibold block mb-2">Salary per month</label>
+                      <label className="text-sm font-semibold block mb-2">Monthly Salary (₹ thousands)</label>
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 flex-1 border rounded-lg h-11 px-3">
+                        <div className="flex items-center gap-2 flex-1 border rounded-lg h-11 px-3 bg-background">
                           <span className="text-muted-foreground font-medium">₹</span>
-                          <Input type="number" placeholder="Min" className="border-0 h-9 p-0 focus-visible:ring-0 [appearance:textfield]" {...form.register("salaryMin")} />
+                          <Input type="number" placeholder="Min" className="border-0 h-9 p-0 focus-visible:ring-0" {...form.register("salaryMin")} />
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">K/mo</span>
                         </div>
                         <span className="text-muted-foreground text-sm shrink-0">to</span>
-                        <div className="flex items-center gap-2 flex-1 border rounded-lg h-11 px-3">
+                        <div className="flex items-center gap-2 flex-1 border rounded-lg h-11 px-3 bg-background">
                           <span className="text-muted-foreground font-medium">₹</span>
-                          <Input type="number" placeholder="Max" className="border-0 h-9 p-0 focus-visible:ring-0 [appearance:textfield]" {...form.register("salaryMax")} />
+                          <Input type="number" placeholder="Max" className="border-0 h-9 p-0 focus-visible:ring-0" {...form.register("salaryMax")} />
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">K/mo</span>
                         </div>
                       </div>
                     </div>
 
-                    {/* Perks */}
                     <div>
-                      <label className="text-sm font-semibold block mb-1">
-                        Perks and benefits <span className="text-muted-foreground font-normal text-xs">(Optional)</span>
-                      </label>
-                      <div className="relative mb-3">
-                        <Input
-                          placeholder="Search for perks and benefits"
-                          className="h-11"
-                          value={customPerk}
-                          onChange={e => setCustomPerk(e.target.value)}
-                          onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addCustomPerk())}
-                        />
+                      <label className="text-sm font-semibold block mb-2">Number of Openings</label>
+                      <Input type="number" min="1" placeholder="1" className="h-11 w-32" {...form.register("openings")} />
+                    </div>
+
+                    <div>
+                      <label className="text-sm font-semibold block mb-1">Perks & Benefits <span className="text-muted-foreground font-normal text-xs">(Optional)</span></label>
+                      <div className="flex gap-2 mb-3">
+                        <Input placeholder="Add custom perk..." className="h-9 flex-1" value={customPerk} onChange={e => setCustomPerk(e.target.value)} onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addCustomPerk())} />
+                        <Button type="button" variant="outline" size="sm" onClick={addCustomPerk}><Plus className="w-4 h-4" /></Button>
                       </div>
-                      <p className="text-xs text-muted-foreground mb-2">Suggestions</p>
                       <div className="flex flex-wrap gap-2">
                         {PERKS.map(perk => (
-                          <button
-                            key={perk}
-                            type="button"
-                            onClick={() => togglePerk(perk)}
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm transition-all ${
-                              selectedPerks.includes(perk)
-                                ? "bg-primary/10 border-primary text-primary font-medium"
-                                : "border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:border-primary/40"
-                            }`}
-                          >
-                            {selectedPerks.includes(perk) ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-                            {perk}
+                          <button key={perk} type="button" onClick={() => togglePerk(perk)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs transition-all ${
+                            selectedPerks.includes(perk) ? "bg-primary/10 border-primary text-primary font-medium" : "border-border text-muted-foreground hover:border-primary/40"
+                          }`}>
+                            {selectedPerks.includes(perk) ? <Check className="w-3 h-3" /> : <Plus className="w-3 h-3" />}{perk}
                           </button>
                         ))}
                       </div>
                       {selectedPerks.length > 0 && (
-                        <div className="mt-3 p-3 bg-primary/5 rounded-lg">
-                          <p className="text-xs text-muted-foreground mb-1.5">Selected perks ({selectedPerks.length}):</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {selectedPerks.map(p => (
-                              <span key={p} className="flex items-center gap-1 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full">
-                                {p}
-                                <button type="button" onClick={() => togglePerk(p)}><X className="w-2.5 h-2.5" /></button>
-                              </span>
-                            ))}
-                          </div>
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          {selectedPerks.map(p => (
+                            <span key={p} className="flex items-center gap-1 bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full">
+                              {p}<button type="button" onClick={() => togglePerk(p)}><X className="w-2.5 h-2.5" /></button>
+                            </span>
+                          ))}
                         </div>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* ── STEP 2: Candidate Preferences ── */}
+                {/* ── STEP 2: Candidate Requirements ── */}
                 {currentStep === 2 && (
-                  <div className="bg-white dark:bg-gray-900 rounded-xl border shadow-sm p-6 space-y-6">
+                  <div className="bg-card rounded-xl border shadow-sm p-5 sm:p-6 space-y-5">
                     <div>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Candidate preferences</h2>
-                      <p className="text-sm text-muted-foreground">Define your ideal candidate</p>
+                      <h2 className="text-xl font-bold mb-0.5">Candidate Requirements</h2>
+                      <p className="text-sm text-muted-foreground">Define what you're looking for in candidates</p>
                     </div>
 
                     <FormField control={form.control} name="location" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-semibold">Job location *</FormLabel>
+                        <FormLabel className="font-semibold">Job Location *</FormLabel>
                         <FormControl><Input placeholder="e.g. Noida, Delhi, Bangalore or Remote" className="h-11" {...field} /></FormControl>
                         <FormMessage />
                       </FormItem>
@@ -416,14 +436,10 @@ export default function EmployerJobForm() {
 
                     <FormField control={form.control} name="category" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-semibold">Job category *</FormLabel>
+                        <FormLabel className="font-semibold">Job Category *</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger className="h-11"><SelectValue placeholder="Select job category" /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                          </SelectContent>
+                          <FormControl><SelectTrigger className="h-11"><SelectValue placeholder="Select category" /></SelectTrigger></FormControl>
+                          <SelectContent>{CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                         </Select>
                         <FormMessage />
                       </FormItem>
@@ -431,7 +447,7 @@ export default function EmployerJobForm() {
 
                     <FormField control={form.control} name="employmentType" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-semibold">Employment type *</FormLabel>
+                        <FormLabel className="font-semibold">Employment Type *</FormLabel>
                         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                           {[
                             { value: "full-time", label: "Full Time" },
@@ -441,9 +457,9 @@ export default function EmployerJobForm() {
                             { value: "remote", label: "Remote" },
                             { value: "hybrid", label: "Hybrid" },
                           ].map(opt => (
-                            <label key={opt.value} className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer text-sm transition-all ${field.value === opt.value ? "border-primary bg-primary/5 text-primary font-medium" : "border-gray-200 dark:border-gray-600 hover:border-primary/40"}`}>
+                            <label key={opt.value} className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border cursor-pointer text-sm transition-all ${field.value === opt.value ? "border-primary bg-primary/5 text-primary font-medium" : "border-border hover:border-primary/40"}`}>
                               <input type="radio" value={opt.value} className="sr-only" onChange={() => field.onChange(opt.value)} checked={field.value === opt.value} />
-                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${field.value === opt.value ? "border-primary" : "border-gray-300"}`}>
+                              <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${field.value === opt.value ? "border-primary" : "border-muted-foreground/40"}`}>
                                 {field.value === opt.value && <div className="w-2 h-2 bg-primary rounded-full" />}
                               </div>
                               {opt.label}
@@ -456,76 +472,126 @@ export default function EmployerJobForm() {
 
                     <FormField control={form.control} name="education" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-semibold">Minimum education</FormLabel>
+                        <FormLabel className="font-semibold">Minimum Education</FormLabel>
                         <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger className="h-11"><SelectValue placeholder="Select education level" /></SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {EDUCATION.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                          </SelectContent>
+                          <FormControl><SelectTrigger className="h-11"><SelectValue placeholder="Select education level" /></SelectTrigger></FormControl>
+                          <SelectContent>{EDUCATION.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}</SelectContent>
                         </Select>
-                        <FormMessage />
                       </FormItem>
                     )} />
 
-                    <FormField control={form.control} name="skills" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-semibold">Required skills <span className="text-muted-foreground font-normal text-xs">(comma separated)</span></FormLabel>
-                        <FormControl><Input placeholder="e.g. React, Node.js, Python, SQL" className="h-11" {...field} /></FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
+                    <div>
+                      <label className="text-sm font-semibold block mb-2">Required Skills</label>
+                      <div className="flex gap-2 mb-2">
+                        <Input placeholder="Add a skill (e.g. React, Python...)" className="h-10 flex-1" value={skillInput} onChange={e => setSkillInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addSkill(); } }} />
+                        <Button type="button" variant="outline" size="sm" onClick={addSkill}><Plus className="w-4 h-4" /></Button>
+                      </div>
+                      {skillsList.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {skillsList.map(s => (
+                            <span key={s} className="flex items-center gap-1 bg-primary/10 text-primary text-xs px-3 py-1 rounded-full font-medium">
+                              {s}<button type="button" onClick={() => removeSkill(s)}><X className="w-3 h-3" /></button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
-                {/* ── STEP 3: Screening Questions ── */}
+                {/* ── STEP 3: Role Information ── */}
                 {currentStep === 3 && (
-                  <div className="bg-white dark:bg-gray-900 rounded-xl border shadow-sm p-6 space-y-6">
+                  <div className="bg-card rounded-xl border shadow-sm p-5 sm:p-6 space-y-5">
                     <div>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Screening questions</h2>
-                      <p className="text-sm text-muted-foreground">Add up to 3 questions to filter candidates <span className="text-primary">(Optional)</span></p>
+                      <h2 className="text-xl font-bold mb-0.5">Role Information</h2>
+                      <p className="text-sm text-muted-foreground">Help candidates understand the role better</p>
                     </div>
 
-                    {[
-                      { name: "screeningQ1", placeholder: "e.g. How many years of React experience do you have?" },
-                      { name: "screeningQ2", placeholder: "e.g. Are you comfortable working from Noida office?" },
-                      { name: "screeningQ3", placeholder: "e.g. What is your current notice period?" },
-                    ].map((q, i) => (
-                      <FormField key={q.name} control={form.control} name={q.name} render={({ field }) => (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="industry" render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="font-semibold">Question {i + 1}</FormLabel>
-                          <FormControl>
-                            <Input placeholder={q.placeholder} className="h-11" {...field} />
-                          </FormControl>
+                          <FormLabel className="font-semibold">Industry Type</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger className="h-11"><SelectValue placeholder="Select industry" /></SelectTrigger></FormControl>
+                            <SelectContent>{INDUSTRIES.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}</SelectContent>
+                          </Select>
                         </FormItem>
                       )} />
-                    ))}
 
-                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-4">
-                      <p className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-1">💡 Pro Tip</p>
-                      <p className="text-xs text-blue-600 dark:text-blue-400">Screening questions help you filter candidates before reviewing resumes. Ask specific, job-relevant questions to get better responses.</p>
+                      <FormField control={form.control} name="department" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold">Department</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger className="h-11"><SelectValue placeholder="Select department" /></SelectTrigger></FormControl>
+                            <SelectContent>{DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} />
+
+                      <FormField control={form.control} name="roleCategory" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold">Role Category</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger className="h-11"><SelectValue placeholder="Select role category" /></SelectTrigger></FormControl>
+                            <SelectContent>{ROLE_CATEGORIES.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} />
+
+                      <FormField control={form.control} name="role" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold">Role / Designation</FormLabel>
+                          <FormControl><Input placeholder="e.g. Software Engineer L2" className="h-11" {...field} /></FormControl>
+                        </FormItem>
+                      )} />
                     </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="shiftTiming" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold flex items-center gap-1.5"><Clock className="w-4 h-4" />Shift Timing</FormLabel>
+                          <FormControl><Input placeholder="e.g. 9:00 AM - 6:00 PM" className="h-11" {...field} /></FormControl>
+                        </FormItem>
+                      )} />
+
+                      <FormField control={form.control} name="workingDays" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold flex items-center gap-1.5"><Calendar className="w-4 h-4" />Working Days</FormLabel>
+                          <FormControl><Input placeholder="e.g. Monday - Friday" className="h-11" {...field} /></FormControl>
+                        </FormItem>
+                      )} />
+                    </div>
+
+                    <FormField control={form.control} name="keyResponsibilities" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="font-semibold">Key Responsibilities</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder={"• Develop and maintain React applications\n• Collaborate with cross-functional teams\n• Code reviews and technical documentation\n• Optimize performance and scalability"}
+                            rows={5} className="resize-none" {...field}
+                          />
+                        </FormControl>
+                        <p className="text-xs text-muted-foreground">Use bullet points (• or -) for better readability</p>
+                      </FormItem>
+                    )} />
                   </div>
                 )}
 
                 {/* ── STEP 4: Job Description ── */}
                 {currentStep === 4 && (
-                  <div className="bg-white dark:bg-gray-900 rounded-xl border shadow-sm p-6 space-y-6">
+                  <div className="bg-card rounded-xl border shadow-sm p-5 sm:p-6 space-y-5">
                     <div>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Job description</h2>
-                      <p className="text-sm text-muted-foreground">Describe the role, responsibilities, and what makes it great</p>
+                      <h2 className="text-xl font-bold mb-0.5">Job Description</h2>
+                      <p className="text-sm text-muted-foreground">Describe the role in detail</p>
                     </div>
 
                     <FormField control={form.control} name="description" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-semibold">Job description *</FormLabel>
+                        <FormLabel className="font-semibold">Full Job Description *</FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder="Describe the role, day-to-day responsibilities, team size, tech stack, growth opportunities..."
-                            rows={8}
-                            className="resize-none"
-                            {...field}
+                            placeholder="Describe the role, team, tech stack, growth opportunities, why candidates should join..."
+                            rows={8} className="resize-none" {...field}
                           />
                         </FormControl>
                         <div className="flex justify-between">
@@ -540,10 +606,8 @@ export default function EmployerJobForm() {
                         <FormLabel className="font-semibold">Requirements / Qualifications <span className="text-muted-foreground font-normal text-xs">(Optional)</span></FormLabel>
                         <FormControl>
                           <Textarea
-                            placeholder={"• B.Tech/BCA in Computer Science\n• 3+ years of experience with React\n• Strong communication skills\n• Experience with agile methodologies"}
-                            rows={5}
-                            className="resize-none"
-                            {...field}
+                            placeholder={"• B.Tech/BCA in Computer Science\n• 3+ years with React\n• Strong communication skills\n• Experience with agile teams"}
+                            rows={5} className="resize-none" {...field}
                           />
                         </FormControl>
                       </FormItem>
@@ -551,79 +615,105 @@ export default function EmployerJobForm() {
                   </div>
                 )}
 
-                {/* ── STEP 5: Communication Preferences ── */}
+                {/* ── STEP 5: Company Info ── */}
                 {currentStep === 5 && (
-                  <div className="bg-white dark:bg-gray-900 rounded-xl border shadow-sm p-6 space-y-6">
+                  <div className="bg-card rounded-xl border shadow-sm p-5 sm:p-6 space-y-5">
                     <div>
-                      <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Communication preferences</h2>
-                      <p className="text-sm text-muted-foreground">How should candidates and we contact you?</p>
+                      <h2 className="text-xl font-bold mb-0.5">Company Information</h2>
+                      <p className="text-sm text-muted-foreground">Help candidates learn about your company</p>
                     </div>
 
-                    <FormField control={form.control} name="contactEmail" render={({ field }) => (
+                    <FormField control={form.control} name="companyDescription" render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="font-semibold">Contact email</FormLabel>
-                        <FormControl><Input type="email" placeholder="hr@yourcompany.com" className="h-11" {...field} /></FormControl>
-                        <FormMessage />
+                        <FormLabel className="font-semibold">About Company</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Describe your company — mission, values, culture, what makes it a great place to work..." rows={4} className="resize-none" {...field} />
+                        </FormControl>
                       </FormItem>
                     )} />
 
-                    <FormField control={form.control} name="contactPhone" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="font-semibold">Contact phone <span className="text-muted-foreground font-normal text-xs">(Optional)</span></FormLabel>
-                        <FormControl><Input type="tel" placeholder="+91 98765 43210" className="h-11" {...field} /></FormControl>
-                      </FormItem>
-                    )} />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="companyWebsite" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold flex items-center gap-1.5"><Globe className="w-4 h-4" />Website</FormLabel>
+                          <FormControl><Input placeholder="https://yourcompany.com" className="h-11" {...field} /></FormControl>
+                        </FormItem>
+                      )} />
 
-                    <div>
-                      <label className="text-sm font-semibold block mb-2">Notify me of new applications via</label>
-                      <div className="flex gap-3">
-                        {["email", "sms", "both"].map(method => (
-                          <label key={method} className={`flex items-center gap-2 px-4 py-2.5 rounded-full border cursor-pointer text-sm capitalize transition-all ${form.watch("notifyMethod") === method ? "border-primary bg-primary/5 text-primary font-medium" : "border-gray-200 dark:border-gray-600 hover:border-primary/40"}`}>
-                            <input type="radio" value={method} className="sr-only" {...form.register("notifyMethod")} />
-                            {method === "both" ? "Email + SMS" : method.toUpperCase()}
-                          </label>
-                        ))}
+                      <FormField control={form.control} name="companySize" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold flex items-center gap-1.5"><Users className="w-4 h-4" />Company Size</FormLabel>
+                          <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl><SelectTrigger className="h-11"><SelectValue placeholder="Select size" /></SelectTrigger></FormControl>
+                            <SelectContent>{COMPANY_SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                          </Select>
+                        </FormItem>
+                      )} />
+
+                      <FormField control={form.control} name="companyRating" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold flex items-center gap-1.5"><Star className="w-4 h-4" />Company Rating (optional)</FormLabel>
+                          <FormControl><Input type="number" step="0.1" min="0" max="5" placeholder="e.g. 4.2" className="h-11" {...field} /></FormControl>
+                        </FormItem>
+                      )} />
+
+                      <FormField control={form.control} name="companyAddress" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="font-semibold flex items-center gap-1.5"><MapPin className="w-4 h-4" />Office Address</FormLabel>
+                          <FormControl><Input placeholder="Full office address" className="h-11" {...field} /></FormControl>
+                        </FormItem>
+                      )} />
+                    </div>
+
+                    <div className="pt-2 border-t">
+                      <p className="text-sm font-semibold mb-3">Contact Details</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="contactEmail" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Contact Email</FormLabel>
+                            <FormControl><Input type="email" placeholder="hr@company.com" className="h-11" {...field} /></FormControl>
+                          </FormItem>
+                        )} />
+                        <FormField control={form.control} name="contactPhone" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Contact Phone</FormLabel>
+                            <FormControl><Input type="tel" placeholder="+91 98765 43210" className="h-11" {...field} /></FormControl>
+                          </FormItem>
+                        )} />
                       </div>
                     </div>
 
-                    {/* Summary Card */}
-                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-5">
-                      <h3 className="font-bold text-green-800 dark:text-green-300 mb-3 flex items-center gap-2">
-                        <Check className="w-4 h-4" /> Ready to post!
-                      </h3>
-                      <div className="space-y-1.5 text-sm text-green-700 dark:text-green-400">
-                        <div className="flex justify-between"><span>Job title:</span><span className="font-medium">{form.watch("title")}</span></div>
-                        <div className="flex justify-between"><span>Company:</span><span className="font-medium">{form.watch("companyName")}</span></div>
-                        <div className="flex justify-between"><span>Location:</span><span className="font-medium">{form.watch("location")}</span></div>
-                        <div className="flex justify-between"><span>Type:</span><span className="font-medium capitalize">{form.watch("employmentType")}</span></div>
-                        {selectedPerks.length > 0 && <div className="flex justify-between"><span>Perks:</span><span className="font-medium">{selectedPerks.length} selected</span></div>}
+                    {/* Preview summary */}
+                    <div className="bg-muted/50 rounded-xl p-4 text-sm">
+                      <p className="font-semibold mb-2 text-foreground">📋 Summary</p>
+                      <div className="grid grid-cols-2 gap-1 text-muted-foreground text-xs">
+                        <span>Title: <strong className="text-foreground">{form.watch("title") || "—"}</strong></span>
+                        <span>Company: <strong className="text-foreground">{form.watch("companyName") || "—"}</strong></span>
+                        <span>Location: <strong className="text-foreground">{form.watch("location") || "—"}</strong></span>
+                        <span>Type: <strong className="text-foreground capitalize">{form.watch("employmentType") || "—"}</strong></span>
+                        <span>Skills: <strong className="text-foreground">{skillsList.length} added</strong></span>
+                        <span>Openings: <strong className="text-foreground">{form.watch("openings") || 1}</strong></span>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Navigation Buttons */}
-                <div className="flex items-center justify-between mt-6">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => currentStep > 1 ? setCurrentStep(s => s - 1) : setLocation("/employer/jobs")}
-                    className="px-6"
-                  >
-                    {currentStep === 1 ? "Cancel" : "← Back"}
-                  </Button>
+                {/* Navigation buttons */}
+                <div className="flex items-center justify-between mt-5">
+                  {currentStep > 1 ? (
+                    <Button type="button" variant="outline" onClick={() => setCurrentStep(s => s - 1)}>← Previous</Button>
+                  ) : <div />}
 
-                  {currentStep < 5 ? (
-                    <Button type="button" onClick={nextStep} className="px-8 gap-2">
-                      Next <ChevronRight className="w-4 h-4" />
+                  {currentStep < STEPS.length ? (
+                    <Button type="button" onClick={async () => {
+                      const valid = await validateStep(currentStep);
+                      if (valid) setCurrentStep(s => s + 1);
+                    }}>
+                      Next →
                     </Button>
                   ) : (
-                    <Button type="submit" disabled={mutation.isPending} className="px-10 gap-2">
-                      {mutation.isPending ? (
-                        <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Posting...</>
-                      ) : (
-                        <><Check className="w-4 h-4" /> {isEditing ? "Update Job" : "Post Job"}</>
-                      )}
+                    <Button type="submit" disabled={mutation.isPending} className="px-8 font-semibold">
+                      {mutation.isPending ? "Posting..." : isEditing ? "Update Job" : "Post Job →"}
                     </Button>
                   )}
                 </div>

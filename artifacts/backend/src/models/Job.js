@@ -7,7 +7,7 @@ const jobSchema = new mongoose.Schema({
   category: { type: String, required: true },
   employmentType: {
     type: String,
-    enum: ["full-time", "part-time", "contract", "internship", "remote"],
+    enum: ["full-time", "part-time", "contract", "internship", "remote", "hybrid"],
     required: true,
   },
   description: { type: String, required: true },
@@ -16,6 +16,29 @@ const jobSchema = new mongoose.Schema({
   skills: [{ type: String }],
   employerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   experienceRequired: { type: String },
+
+  openings: { type: Number, default: 1 },
+  industry: { type: String },
+  department: { type: String },
+  roleCategory: { type: String },
+  role: { type: String },
+  education: { type: String },
+  shiftTiming: { type: String },
+  workingDays: { type: String },
+  keyResponsibilities: { type: String },
+
+  companyDescription: { type: String },
+  companyWebsite: { type: String },
+  companySize: { type: String },
+  companyAddress: { type: String },
+  companyRating: { type: Number, min: 0, max: 5 },
+  companyReviews: { type: Number, default: 0 },
+
+  perks: [{ type: String }],
+  screeningQuestions: [{ type: String }],
+  contactEmail: { type: String },
+  contactPhone: { type: String },
+
   isActive: { type: Boolean, default: true },
   applicantCount: { type: Number, default: 0 },
   savedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],

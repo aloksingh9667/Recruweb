@@ -3,14 +3,27 @@ import { fetchApi } from "@/lib/api";
 import { useParams, Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
-import { Building2, MapPin, Briefcase, IndianRupee, ArrowLeft, Send, Bookmark, BookmarkCheck } from "lucide-react";
+import {
+  MapPin, Briefcase, IndianRupee, ArrowLeft, Send, Bookmark,
+  BookmarkCheck, Clock, Users, Star, Globe, Building2, GraduationCap,
+  Calendar, Timer, CheckCircle2, AlertCircle, ChevronRight,
+} from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+
+function InfoRow({ label, value }) {
+  if (!value) return null;
+  return (
+    <div className="flex gap-2 py-2.5 border-b border-border/50 last:border-0">
+      <span className="text-muted-foreground text-sm w-40 shrink-0">{label}</span>
+      <span className="text-sm font-medium text-foreground">{value}</span>
+    </div>
+  );
+}
 
 export default function JobDetail() {
   const { jobId } = useParams();
@@ -36,23 +49,21 @@ export default function JobDetail() {
     queryFn: () => fetchApi("/jobs/saved/my"),
     enabled: !!user && user.role === "candidate",
   });
-  const savedJobsList = Array.isArray(savedJobsRaw) ? savedJobsRaw : (savedJobsRaw?.savedJobs ?? savedJobsRaw?.jobs ?? []);
 
+  const savedJobsList = Array.isArray(savedJobsRaw) ? savedJobsRaw : (savedJobsRaw?.jobs ?? []);
   const hasApplied = (applications?.applications ?? (Array.isArray(applications) ? applications : []))
-    .some(app => app.jobId === jobId || app.jobId?._id === jobId || app.jobId?.id === jobId);
-
+    .some(a => a.jobId === jobId || a.jobId?._id === jobId || a.jobId?.id === jobId);
   const isSaved = savedJobsList.some(j => j._id === jobId || j.id === jobId);
+  const isCandidate = user?.role === "candidate";
 
   const applyMutation = useMutation({
     mutationFn: (data) => fetchApi("/applications", { method: "POST", body: JSON.stringify(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["myApplications"] });
-      toast({ title: "Application submitted!", description: "You have successfully applied for this job." });
+      toast({ title: "Application submitted!", description: "Your application has been sent." });
       setIsDialogOpen(false);
     },
-    onError: (error) => {
-      toast({ title: "Application failed", description: error.message, variant: "destructive" });
-    }
+    onError: (err) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
   });
 
   const saveMutation = useMutation({
@@ -61,183 +72,356 @@ export default function JobDetail() {
       : fetchApi(`/jobs/${jobId}/save`, { method: "POST" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["savedJobs"] });
-      toast({
-        title: isSaved ? "Job removed" : "Job saved",
-        description: isSaved ? "Removed from saved jobs" : "Added to your saved jobs",
-      });
+      toast({ title: isSaved ? "Removed from saved" : "Job saved!" });
     },
-    onError: (err) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
   });
 
   if (isLoading) {
-    return <div className="container mx-auto p-8 animate-pulse text-center">Loading job details...</div>;
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-muted rounded w-1/2" />
+          <div className="h-4 bg-muted rounded w-1/3" />
+          <div className="h-32 bg-muted rounded" />
+        </div>
+      </div>
+    );
   }
 
   if (!job) {
-    return <div className="container mx-auto p-8 text-center">Job not found</div>;
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-16 text-center">
+        <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+        <h2 className="text-xl font-semibold mb-2">Job not found</h2>
+        <Link href="/jobs"><Button variant="outline">Back to Jobs</Button></Link>
+      </div>
+    );
   }
 
-  return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <Link href="/jobs" className="inline-flex items-center text-sm font-medium text-muted-foreground hover:text-primary mb-6 transition-colors">
-        <ArrowLeft className="h-4 w-4 mr-1" /> Back to jobs
-      </Link>
+  const companyName = job.company || job.employer?.company || "Company";
+  const companyDesc = job.companyDescription || job.employer?.description;
+  const companyWebsite = job.companyWebsite || job.employer?.website;
+  const companySize = job.companySize || job.employer?.companySize;
+  const companyAddress = job.companyAddress;
+  const companyRating = job.companyRating;
+  const companyReviews = job.companyReviews;
 
-      <Card className="border-border shadow-sm mb-8">
-        <CardContent className="p-6 md:p-8">
-          <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-            <div>
-              <h1 className="text-3xl font-bold text-primary tracking-tight">{job.title}</h1>
-              <div className="mt-2 text-xl text-muted-foreground font-medium">
-                {job.employer?.company || "Company Name"}
+  return (
+    <div className="bg-muted/30 min-h-screen">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+        <Link href="/jobs" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-4 transition-colors gap-1">
+          <ArrowLeft className="h-4 w-4" /> Back to jobs
+        </Link>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+          {/* ── LEFT COLUMN ── */}
+          <div className="lg:col-span-2 space-y-4">
+
+            {/* Job Header Card */}
+            <div className="bg-card border border-border rounded-xl p-4 sm:p-6 shadow-sm">
+              <div className="flex gap-4 items-start">
+                {/* Company Logo */}
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-xl shrink-0 border border-border">
+                  {companyName.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-xl sm:text-2xl font-bold text-foreground leading-tight">{job.title}</h1>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="text-base font-semibold text-primary">{companyName}</span>
+                    {companyRating && (
+                      <span className="flex items-center gap-1 bg-green-600 text-white text-xs font-bold px-1.5 py-0.5 rounded">
+                        <Star className="w-3 h-3 fill-white" />{companyRating}
+                      </span>
+                    )}
+                    {companyReviews > 0 && (
+                      <span className="text-xs text-muted-foreground">{companyReviews} reviews</span>
+                    )}
+                  </div>
+
+                  {/* Meta pills */}
+                  <div className="flex flex-wrap gap-3 mt-3 text-sm text-muted-foreground">
+                    {job.experienceRequired && (
+                      <span className="flex items-center gap-1.5">
+                        <Briefcase className="w-4 h-4 text-primary/60" />{job.experienceRequired}
+                      </span>
+                    )}
+                    {job.salaryRange && (
+                      <span className="flex items-center gap-1.5">
+                        <IndianRupee className="w-4 h-4 text-primary/60" />{job.salaryRange}
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-primary/60" />{job.location}
+                    </span>
+                  </div>
+
+                  {/* Secondary meta */}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
+                    {job.createdAt && (
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        Posted {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}
+                      </span>
+                    )}
+                    {job.openings > 0 && (
+                      <span className="flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5" />
+                        {job.openings} opening{job.openings !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {job.applicantCount > 0 && (
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        {job.applicantCount}+ applicants
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex gap-3 mt-5 flex-wrap">
+                {user?.role === "employer" ? (
+                  <Button disabled variant="outline" className="flex-1 sm:flex-none">Employers cannot apply</Button>
+                ) : hasApplied ? (
+                  <Button disabled variant="secondary" className="flex-1 sm:flex-none gap-2">
+                    <CheckCircle2 className="w-4 h-4" /> Applied
+                  </Button>
+                ) : user ? (
+                  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="flex-1 sm:flex-none gap-2 font-semibold">
+                        <Send className="w-4 h-4" /> Apply now
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-lg">
+                      <DialogHeader>
+                        <DialogTitle>Apply for {job.title}</DialogTitle>
+                        <DialogDescription>at {companyName} · {job.location}</DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 mt-2">
+                        <div>
+                          <label className="text-sm font-medium mb-1.5 block">Cover Letter <span className="text-muted-foreground font-normal">(Optional)</span></label>
+                          <Textarea
+                            placeholder="Why are you a great fit for this role? Highlight your most relevant experience..."
+                            value={coverLetter}
+                            onChange={e => setCoverLetter(e.target.value)}
+                            rows={5}
+                            className="resize-none"
+                          />
+                        </div>
+                        {job.screeningQuestions?.filter(Boolean).map((q, i) => (
+                          <div key={i}>
+                            <label className="text-sm font-medium mb-1.5 block">Q{i + 1}: {q}</label>
+                            <Textarea placeholder="Your answer..." rows={2} className="resize-none" />
+                          </div>
+                        ))}
+                        <Button
+                          onClick={() => applyMutation.mutate({ jobId, coverLetter })}
+                          disabled={applyMutation.isPending}
+                          className="w-full font-semibold"
+                        >
+                          {applyMutation.isPending ? "Submitting..." : "Submit Application"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                ) : (
+                  <Link href="/login"><Button className="flex-1 sm:flex-none font-semibold"><Send className="w-4 h-4 mr-2" />Login to Apply</Button></Link>
+                )}
+
+                {isCandidate && (
+                  <Button
+                    variant="outline"
+                    onClick={() => saveMutation.mutate()}
+                    disabled={saveMutation.isPending}
+                    className={`flex-1 sm:flex-none gap-2 ${isSaved ? "border-primary text-primary bg-primary/5" : ""}`}
+                  >
+                    {isSaved ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+                    {isSaved ? "Saved" : "Save"}
+                  </Button>
+                )}
               </div>
             </div>
 
-            <div className="flex gap-2 flex-shrink-0 flex-wrap">
-              {/* Save button for candidates */}
-              {user?.role === "candidate" && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => saveMutation.mutate()}
-                  disabled={saveMutation.isPending}
-                  className={`gap-1.5 ${isSaved ? "text-primary border-primary/50 bg-primary/5" : ""}`}
-                >
-                  {isSaved
-                    ? <BookmarkCheck className="h-4 w-4" />
-                    : <Bookmark className="h-4 w-4" />
-                  }
-                  {isSaved ? "Saved" : "Save Job"}
-                </Button>
+            {/* Job Description */}
+            <div className="bg-card border border-border rounded-xl p-4 sm:p-6 shadow-sm">
+              <h2 className="text-lg font-bold mb-4 pb-2 border-b">Job description</h2>
+              <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                {job.description}
+              </div>
+            </div>
+
+            {/* Key Responsibilities */}
+            {job.keyResponsibilities && (
+              <div className="bg-card border border-border rounded-xl p-4 sm:p-6 shadow-sm">
+                <h2 className="text-lg font-bold mb-4 pb-2 border-b">Key Responsibilities</h2>
+                <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                  {job.keyResponsibilities}
+                </div>
+              </div>
+            )}
+
+            {/* Requirements */}
+            {job.requirements && (
+              <div className="bg-card border border-border rounded-xl p-4 sm:p-6 shadow-sm">
+                <h2 className="text-lg font-bold mb-4 pb-2 border-b">Requirements & Qualifications</h2>
+                <div className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                  {job.requirements}
+                </div>
+              </div>
+            )}
+
+            {/* Role Details Table */}
+            <div className="bg-card border border-border rounded-xl p-4 sm:p-6 shadow-sm">
+              <h2 className="text-lg font-bold mb-3 pb-2 border-b">Role details</h2>
+              <div className="divide-y divide-border/50">
+                <InfoRow label="Role" value={job.role || job.title} />
+                <InfoRow label="Industry Type" value={job.industry} />
+                <InfoRow label="Department" value={job.department} />
+                <InfoRow label="Employment Type" value={job.employmentType ? job.employmentType.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : undefined} />
+                <InfoRow label="Role Category" value={job.roleCategory} />
+                <InfoRow label="Education" value={job.education} />
+                {job.shiftTiming && <InfoRow label="Shift Timing" value={job.shiftTiming} />}
+                {job.workingDays && <InfoRow label="Working Days" value={job.workingDays} />}
+              </div>
+            </div>
+
+            {/* Skills */}
+            {job.skills?.length > 0 && (
+              <div className="bg-card border border-border rounded-xl p-4 sm:p-6 shadow-sm">
+                <h2 className="text-lg font-bold mb-4 pb-2 border-b">Key Skills</h2>
+                <div className="flex flex-wrap gap-2">
+                  {job.skills.map((skill, i) => (
+                    <Badge key={i} variant="secondary" className="px-3 py-1.5 text-xs font-medium rounded-full border border-primary/20 bg-primary/5 text-primary hover:bg-primary/10 transition-colors">
+                      {skill}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* About Company */}
+            <div className="bg-card border border-border rounded-xl p-4 sm:p-6 shadow-sm">
+              <h2 className="text-lg font-bold mb-4 pb-2 border-b">About company</h2>
+              <div className="flex items-start gap-4 mb-4">
+                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-lg shrink-0 border border-border">
+                  {companyName.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">{companyName}</h3>
+                  <div className="flex flex-wrap gap-3 mt-1 text-xs text-muted-foreground">
+                    {(job.industry || job.employer?.industry) && (
+                      <span className="flex items-center gap-1"><Building2 className="w-3.5 h-3.5" />{job.industry || job.employer?.industry}</span>
+                    )}
+                    {companySize && <span className="flex items-center gap-1"><Users className="w-3.5 h-3.5" />{companySize}</span>}
+                    {companyWebsite && (
+                      <a href={companyWebsite} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-primary hover:underline">
+                        <Globe className="w-3.5 h-3.5" />Website
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {companyDesc && (
+                <p className="text-sm text-muted-foreground leading-relaxed mb-3">{companyDesc}</p>
               )}
 
-              {/* Apply button */}
-              {user?.role === "employer" ? (
-                <Button disabled variant="outline">Employers cannot apply</Button>
-              ) : hasApplied ? (
-                <Button disabled variant="secondary">Already Applied</Button>
-              ) : user ? (
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button><Send className="h-4 w-4 mr-2" /> Apply Now</Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Apply for {job.title}</DialogTitle>
-                      <DialogDescription>
-                        Submit your application to {job.employer?.company}. Make sure your profile and resume are up to date.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="mt-4 space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Cover Letter (Optional)</label>
-                        <Textarea
-                          placeholder="Why are you a good fit for this role?"
-                          value={coverLetter}
-                          onChange={(e) => setCoverLetter(e.target.value)}
-                          rows={6}
-                        />
-                      </div>
-                      <Button
-                        onClick={() => applyMutation.mutate({ jobId, coverLetter })}
-                        disabled={applyMutation.isPending}
-                        className="w-full"
-                      >
-                        {applyMutation.isPending ? "Submitting..." : "Submit Application"}
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              ) : (
-                <Link href="/login">
-                  <Button>Login to Apply</Button>
-                </Link>
+              {companyAddress && (
+                <div className="flex items-start gap-2 text-sm text-muted-foreground mt-3 pt-3 border-t border-border/50">
+                  <MapPin className="w-4 h-4 shrink-0 mt-0.5 text-primary/60" />
+                  <span>{companyAddress}</span>
+                </div>
               )}
             </div>
-          </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 py-6 border-y">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <MapPin className="h-5 w-5 text-primary" />
-              <span className="font-medium text-foreground">{job.location}</span>
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Briefcase className="h-5 w-5 text-primary" />
-              <span className="font-medium text-foreground capitalize">{job.employmentType?.replace("-", " ")}</span>
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Building2 className="h-5 w-5 text-primary" />
-              <span className="font-medium text-foreground">{job.category}</span>
-            </div>
-            {job.salaryRange && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <IndianRupee className="h-5 w-5 text-primary" />
-                <span className="font-medium text-foreground">{job.salaryRange}</span>
+            {/* Contact */}
+            {(job.contactEmail || job.contactPhone) && (
+              <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-xl p-4 text-sm text-amber-800 dark:text-amber-300">
+                <p className="font-semibold mb-1">⚠️ Beware of fraudsters</p>
+                <p className="text-xs opacity-80">Recruweb does not promise a job or interview in exchange for money. Do not pay anyone claiming to be a recruiter.</p>
               </div>
             )}
           </div>
-          {job.createdAt && (
-            <div className="mt-4 text-sm text-muted-foreground">
-              Posted {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
-      <div className="grid md:grid-cols-3 gap-8">
-        <div className="md:col-span-2 space-y-8">
-          <section>
-            <h2 className="text-xl font-semibold mb-4 border-b pb-2">Job Description</h2>
-            <div className="prose max-w-none text-foreground whitespace-pre-wrap">
-              {job.description}
-            </div>
-          </section>
-
-          {job.requirements && (
-            <section>
-              <h2 className="text-xl font-semibold mb-4 border-b pb-2">Requirements</h2>
-              <div className="prose max-w-none text-foreground whitespace-pre-wrap">
-                {job.requirements}
-              </div>
-            </section>
-          )}
-        </div>
-
-        <div className="space-y-6">
-          {job.skills && job.skills.length > 0 && (
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-semibold mb-4">Required Skills</h3>
+          {/* ── RIGHT SIDEBAR ── */}
+          <div className="space-y-4">
+            {/* Perks */}
+            {job.perks?.length > 0 && (
+              <div className="bg-card border border-border rounded-xl p-4 sm:p-5 shadow-sm">
+                <h3 className="font-semibold mb-3 text-sm">Perks & Benefits</h3>
                 <div className="flex flex-wrap gap-2">
-                  {job.skills.map((skill, i) => (
-                    <Badge key={i} variant="secondary">{skill}</Badge>
+                  {job.perks.map((perk, i) => (
+                    <span key={i} className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800/40 px-2.5 py-1 rounded-full font-medium">
+                      <CheckCircle2 className="w-3 h-3" />{perk}
+                    </span>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              </div>
+            )}
 
-          {job.employer && (
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="font-semibold mb-4">About {job.employer.company}</h3>
-                {job.employer.industry && <p className="text-sm mb-2"><span className="text-muted-foreground">Industry:</span> {job.employer.industry}</p>}
-                {job.employer.companySize && <p className="text-sm mb-2"><span className="text-muted-foreground">Size:</span> {job.employer.companySize}</p>}
-                {job.employer.website && (
-                  <p className="text-sm mb-2">
-                    <a href={job.employer.website} target="_blank" rel="noreferrer" className="text-primary hover:underline">Visit Website</a>
-                  </p>
+            {/* Quick Info */}
+            <div className="bg-card border border-border rounded-xl p-4 sm:p-5 shadow-sm">
+              <h3 className="font-semibold mb-3 text-sm">Quick Info</h3>
+              <div className="space-y-3 text-sm">
+                {job.employmentType && (
+                  <div className="flex items-center gap-2.5 text-muted-foreground">
+                    <Briefcase className="w-4 h-4 text-primary/60 shrink-0" />
+                    <span className="capitalize">{job.employmentType.replace(/-/g, " ")}</span>
+                  </div>
                 )}
-                {job.employer.description && (
-                  <p className="text-sm text-muted-foreground mt-4 line-clamp-4">
-                    {job.employer.description}
-                  </p>
+                {job.education && (
+                  <div className="flex items-center gap-2.5 text-muted-foreground">
+                    <GraduationCap className="w-4 h-4 text-primary/60 shrink-0" />
+                    <span>{job.education}</span>
+                  </div>
                 )}
-              </CardContent>
-            </Card>
-          )}
+                {job.shiftTiming && (
+                  <div className="flex items-center gap-2.5 text-muted-foreground">
+                    <Timer className="w-4 h-4 text-primary/60 shrink-0" />
+                    <span>{job.shiftTiming}</span>
+                  </div>
+                )}
+                {job.workingDays && (
+                  <div className="flex items-center gap-2.5 text-muted-foreground">
+                    <Calendar className="w-4 h-4 text-primary/60 shrink-0" />
+                    <span>{job.workingDays}</span>
+                  </div>
+                )}
+                {job.openings > 0 && (
+                  <div className="flex items-center gap-2.5 text-muted-foreground">
+                    <Users className="w-4 h-4 text-primary/60 shrink-0" />
+                    <span>{job.openings} opening{job.openings !== 1 ? "s" : ""}</span>
+                  </div>
+                )}
+                {job.category && (
+                  <div className="flex items-center gap-2.5 text-muted-foreground">
+                    <ChevronRight className="w-4 h-4 text-primary/60 shrink-0" />
+                    <span>{job.category}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Apply CTA again on sidebar */}
+            {!hasApplied && isCandidate && (
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center">
+                <p className="text-sm font-semibold mb-1">Interested in this job?</p>
+                <p className="text-xs text-muted-foreground mb-3">Apply now before the positions are filled</p>
+                <Button size="sm" className="w-full font-semibold" onClick={() => setIsDialogOpen(true)}>
+                  <Send className="w-3.5 h-3.5 mr-1.5" />Apply Now
+                </Button>
+              </div>
+            )}
+
+            {/* Report */}
+            <div className="text-center">
+              <button className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+                Report this job
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
