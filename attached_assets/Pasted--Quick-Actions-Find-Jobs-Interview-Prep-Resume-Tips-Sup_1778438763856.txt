@@ -1,0 +1,89 @@
+
+Quick Actions
+
+Find Jobs
+Interview Prep
+Resume Tips
+Support remove this from ai chat bot and Jobs by Location
+
+Noida, Delhi NCR & more
+
+Jobs by Salary
+
+Highest paying first
+
+Walk-in Jobs
+
+Immediate joining
+
+Recommended Jobs
+
+Based on your profile ye sare nevbar ke option pr click krte he job page open hoke same filter apply ho jae also all necesssery information user se signup ke baad multiple page pr le lo ya login krte hue use mulpitle page pr le jao aik ke baad aik aru sari info le lo user ki and apply and save job button isnot working aywhere and also notification show incorect data remove it make it correct and also my profile me cjeeze add kro and my resume me resume upload krke data save kro aur profile aur resume ke according jobs suggest kro All Applications
+
+Applied Jobs
+
+Shortlisted
+
+Interview Scheduled
+
+Hired
+
+Rejected ye sare filter bhi apply kro bas click kho rheh bt apply nhi ho rhe h also it showuser not fund error everywhere when hi do something but i am login as default user credentials setting section me seetings ke options show kro aur profile me profile ke mix mt kro har aik task ko steps me devide krke acche se solve krke acche se interactive way me show kro
+
+
+Show less
+8 minutes ago
+
+Planning feature integration strategy (7 seconds)
+This is a big multi-part task. Let me map out all steps and read all affected files at once before starting:
+
+
+5 actions
+Let me read all critical files in parallel to understand everything before making changes:
+
+
+5 actions
+Let me read all the remaining files I need in parallel:
+
+
+9 actions
+Now I have a complete picture. Let me read the remaining key files before writing all the fixes:
+
+
+6 actions
+Good, now I have everything I need. Let me read the NavBar and Jobs.jsx files, plus check for an Onboarding component:
+
+
+6 actions
+Now let me read more of Jobs.jsx to see the parseParamsToState function and understand the full filter logic:
+
+
+3 actions
+Let me read the rest of Jobs.jsx to understand the full filter logic before writing fixes:
+
+
+3 actions
+Now I have the full picture. Let me read the Quick Actions section of the chatbot and the rest of it:
+
+
+3 actions
+Now I have everything I need to make all the fixes. Let me create a session plan and execute all changes in parallel:
+
+
+2 actions
+Now I have the complete picture. I'm making all fixes in parallel:
+
+
+4 actions
+Now removing the Quick Actions block from the chatbot and making the remaining fixes in parallel:
+
+
+4 actions
+Continuing with the remaining changes in parallel:
+
+
+3 actions
+Continuing all remaining changes in parallel:
+
+
+2 actions
