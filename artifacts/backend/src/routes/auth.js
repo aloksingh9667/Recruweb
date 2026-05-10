@@ -11,7 +11,7 @@ const signToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: 
 
 // POST /api/auth/register
 router.post("/register", async (req, res) => {
-  const { name, email, password, role, company } = req.body;
+  const { name, email, phone, password, role, company, fieldOfInterest, experienceLevel, currentLocation } = req.body;
   if (!name || !email || !password || !role)
     return res.status(400).json({ message: "All fields required" });
   if (!["candidate", "employer"].includes(role))
@@ -20,7 +20,14 @@ router.post("/register", async (req, res) => {
   const existing = await User.findOne({ email });
   if (existing) return res.status(400).json({ message: "Email already registered" });
 
-  const user = await User.create({ name, email, password, role, company: company || undefined });
+  const user = await User.create({
+    name, email, password, role,
+    phone: phone || undefined,
+    company: company || undefined,
+    fieldOfInterest: fieldOfInterest || undefined,
+    experienceLevel: experienceLevel || undefined,
+    currentLocation: currentLocation || undefined,
+  });
 
   if (role === "candidate") {
     await CandidateProfile.create({ userId: user._id });
@@ -34,16 +41,31 @@ router.post("/register", async (req, res) => {
 
 // POST /api/auth/login
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password)
-    return res.status(400).json({ message: "Email and password required" });
+  const { email, phone, password, role } = req.body;
 
-  const user = await User.findOne({ email });
-  if (!user || !(await user.comparePassword(password)))
+  if (!password) return res.status(400).json({ message: "Password is required" });
+
+  let user;
+  if (phone) {
+    user = await User.findOne({ phone });
+    if (!user) return res.status(401).json({ message: "No account found with this phone number" });
+  } else if (email) {
+    user = await User.findOne({ email });
+    if (!user) return res.status(401).json({ message: "Invalid credentials" });
+  } else {
+    return res.status(400).json({ message: "Email or phone required" });
+  }
+
+  if (!(await user.comparePassword(password)))
     return res.status(401).json({ message: "Invalid credentials" });
 
   if (user.isBanned)
     return res.status(403).json({ message: "Account suspended. Contact support@recruweb.in" });
+
+  // Soft role check — just warn if mismatch (don't block)
+  if (role && user.role !== "admin" && user.role !== role) {
+    return res.status(401).json({ message: `This account is registered as a ${user.role}. Please select the correct role.` });
+  }
 
   const token = signToken(user._id);
   res.json({ token, user: user.toJSON() });
@@ -54,11 +76,15 @@ router.get("/me", protect, (req, res) => res.json(req.user.toJSON()));
 
 // PUT /api/auth/update-profile
 router.put("/update-profile", protect, async (req, res) => {
-  const { name } = req.body;
+  const { name, phone, currentLocation, fieldOfInterest, experienceLevel } = req.body;
   if (!name || name.trim().length < 2)
     return res.status(400).json({ message: "Name must be at least 2 characters" });
 
   req.user.name = name.trim();
+  if (phone !== undefined) req.user.phone = phone || undefined;
+  if (currentLocation !== undefined) req.user.currentLocation = currentLocation || undefined;
+  if (fieldOfInterest !== undefined) req.user.fieldOfInterest = fieldOfInterest || undefined;
+  if (experienceLevel !== undefined) req.user.experienceLevel = experienceLevel || undefined;
   await req.user.save();
   res.json(req.user.toJSON());
 });

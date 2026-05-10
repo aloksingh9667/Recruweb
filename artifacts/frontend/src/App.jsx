@@ -7,6 +7,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { NavBar } from "@/components/NavBar";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AIChatbot } from "@/components/AIChatbot";
+import Footer from "@/components/Footer";
 
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
@@ -104,11 +105,7 @@ function App() {
                   </Switch>
                 </main>
 
-                <footer className="border-t bg-muted/20 py-8 mt-12">
-                  <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-                    <p>© {new Date().getFullYear()} Recruweb Resources Pvt. Ltd. · Noida, Delhi NCR · support@recruweb.in</p>
-                  </div>
-                </footer>
+                <Footer />
               </div>
 
               <AIChatbot />

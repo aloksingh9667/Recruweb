@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -8,46 +9,68 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Briefcase, Building2, User, Eye, EyeOff, Phone, Mail, Lock, ArrowRight, CheckCircle2 } from "lucide-react";
+
+const FIELDS_OF_INTEREST = [
+  "Information Technology", "Software Engineering", "Data Science & Analytics",
+  "Marketing & Communications", "Sales & Business Development", "Finance & Accounting",
+  "Human Resources", "Design & Creative", "Operations & Logistics", "Healthcare",
+  "Education & Training", "Legal & Compliance", "Engineering (Non-IT)", "Other",
+];
+
+const EXPERIENCE_LEVELS = [
+  "Fresher (0 years)", "1-2 years", "3-5 years", "5-8 years", "8-12 years", "12+ years",
+];
 
 const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
+  phone: z.string().min(10, "Phone number must be at least 10 digits").optional().or(z.literal("")),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["candidate", "employer"]),
   company: z.string().optional(),
+  fieldOfInterest: z.string().optional(),
+  experienceLevel: z.string().optional(),
+  currentLocation: z.string().optional(),
 }).refine(data => {
-  if (data.role === "employer" && (!data.company || data.company.length < 2)) {
-    return false;
-  }
+  if (data.role === "employer" && (!data.company || data.company.length < 2)) return false;
   return true;
-}, {
-  message: "Company name is required for employers",
-  path: ["company"]
-});
+}, { message: "Company name is required for employers", path: ["company"] });
 
 export default function Register() {
   const { login } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [showPassword, setShowPassword] = useState(false);
+  const [selectedRole, setSelectedRole] = useState("candidate");
+  const [step, setStep] = useState(1);
 
   const form = useForm({
     resolver: zodResolver(registerSchema),
-    defaultValues: { name: "", email: "", password: "", role: "candidate", company: "" },
+    defaultValues: { name: "", email: "", phone: "", password: "", role: "candidate", company: "", fieldOfInterest: "", experienceLevel: "", currentLocation: "" },
   });
 
   const role = form.watch("role");
 
+  const onRoleSelect = (r) => {
+    setSelectedRole(r);
+    form.setValue("role", r);
+  };
+
+  const nextStep = async () => {
+    const fields = step === 1 ? ["name", "email", "phone", "password", "role", ...(role === "employer" ? ["company"] : [])] : [];
+    const valid = await form.trigger(fields);
+    if (valid) setStep(2);
+  };
+
   const onSubmit = async (data) => {
     try {
-      const res = await fetchApi("/auth/register", {
-        method: "POST",
-        body: JSON.stringify(data),
-      });
-      if (res && res.token && res.user) {
+      const payload = { ...data, phone: data.phone || undefined };
+      const res = await fetchApi("/auth/register", { method: "POST", body: JSON.stringify(payload) });
+      if (res?.token && res?.user) {
         login(res.token, res.user);
-        toast({ title: "Account created!", description: "Welcome to Recruweb." });
+        toast({ title: "Welcome to Recruweb! 🎉", description: "Your account has been created successfully." });
         setLocation(res.user.role === "employer" ? "/employer/dashboard" : "/candidate/dashboard");
       }
     } catch (err) {
@@ -55,129 +78,243 @@ export default function Register() {
     }
   };
 
+  const benefits = role === "employer"
+    ? ["Post unlimited job listings", "Access to 1Cr+ candidate profiles", "AI-powered candidate matching", "Track applications easily"]
+    : ["Apply to 5L+ jobs instantly", "AI Resume Builder & Analyzer", "Job alerts & notifications", "Career counseling tools"];
+
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-muted/30 py-12">
-      <Card className="w-full max-w-xl shadow-lg border-primary/10">
-        <CardHeader className="space-y-2 text-center pb-6">
-          <CardTitle className="text-3xl font-bold tracking-tight text-primary">Create an account</CardTitle>
-          <CardDescription className="text-base">
-            Join Recruweb to find your next opportunity or great hire
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="role"
-                render={({ field }) => (
-                  <FormItem className="space-y-3 mb-6">
-                    <FormLabel className="text-base">I am looking to...</FormLabel>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        className="grid grid-cols-2 gap-4"
-                      >
-                        <FormItem>
-                          <FormControl>
-                            <RadioGroupItem value="candidate" className="peer sr-only" />
-                          </FormControl>
-                          <FormLabel className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-user mb-3 h-6 w-6"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            Find a job
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem>
-                          <FormControl>
-                            <RadioGroupItem value="employer" className="peer sr-only" />
-                          </FormControl>
-                          <FormLabel className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 cursor-pointer">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-building-2 mb-3 h-6 w-6"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg>
-                            Hire talent
-                          </FormLabel>
-                        </FormItem>
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Full Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="John Doe" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="you@example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {role === "employer" && (
-                <FormField
-                  control={form.control}
-                  name="company"
-                  render={({ field }) => (
-                    <FormItem className="animate-in fade-in slide-in-from-top-2">
-                      <FormLabel>Company Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Acme Inc." {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Button type="submit" className="w-full mt-6" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Creating account..." : "Create account"}
-              </Button>
-            </form>
-          </Form>
-          
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link href="/login" className="font-medium text-primary hover:underline">
-              Log in
-            </Link>
+    <div className="min-h-[calc(100vh-4rem)] flex bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800">
+      {/* Left Panel */}
+      <div className="hidden lg:flex lg:w-5/12 bg-primary flex-col justify-center p-12 text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-700" />
+        <div className="absolute inset-0 opacity-10" style={{backgroundImage: "radial-gradient(circle at 25% 25%, white 2px, transparent 2px)", backgroundSize: "50px 50px"}} />
+        <div className="relative z-10 max-w-xs">
+          <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mb-8 backdrop-blur-sm">
+            <Briefcase className="w-8 h-8 text-white" />
           </div>
-        </CardContent>
-      </Card>
+          <h2 className="text-3xl font-bold mb-4">
+            {role === "employer" ? "Start Hiring Today" : "Find Your Next Role"}
+          </h2>
+          <p className="text-blue-100 mb-8 leading-relaxed">
+            {role === "employer" ? "Join 50,000+ companies hiring on Recruweb." : "Join 1 Crore+ job seekers on India's fastest growing job portal."}
+          </p>
+          <div className="space-y-3">
+            {benefits.map((b) => (
+              <div key={b} className="flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-green-300 shrink-0" />
+                <span className="text-blue-50 text-sm">{b}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Right Panel */}
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12 overflow-y-auto">
+        <div className="w-full max-w-lg py-8">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-1">Create your account</h1>
+          <p className="text-gray-500 dark:text-gray-400 mb-6">Join Recruweb — India's top job portal</p>
+
+          {/* Progress */}
+          <div className="flex items-center gap-3 mb-8">
+            {[1, 2].map((s) => (
+              <div key={s} className="flex items-center gap-2">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step >= s ? "bg-primary text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-500"}`}>{s}</div>
+                <span className={`text-sm font-medium ${step >= s ? "text-primary" : "text-gray-400"}`}>{s === 1 ? "Basic Info" : "Preferences"}</span>
+                {s < 2 && <div className={`flex-1 h-0.5 w-12 ${step > s ? "bg-primary" : "bg-gray-200"}`} />}
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-8">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)}>
+                {step === 1 && (
+                  <div className="space-y-5">
+                    {/* Role Selection */}
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">I want to:</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { value: "candidate", label: "Find a Job", sub: "Job Seeker", Icon: User },
+                          { value: "employer", label: "Hire Talent", sub: "Employer/Company", Icon: Building2 },
+                        ].map(({ value, label, sub, Icon }) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => onRoleSelect(value)}
+                            className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer ${selectedRole === value ? "border-primary bg-primary/5" : "border-gray-200 dark:border-gray-600 hover:border-primary/40"}`}
+                          >
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${selectedRole === value ? "bg-primary text-white" : "bg-gray-100 dark:bg-gray-700 text-gray-500"}`}>
+                              <Icon className="w-5 h-5" />
+                            </div>
+                            <span className={`text-sm font-semibold ${selectedRole === value ? "text-primary" : "text-gray-700 dark:text-gray-300"}`}>{label}</span>
+                            <span className="text-[11px] text-gray-400">{sub}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="name" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Full Name *</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <Input placeholder="Rahul Sharma" className="pl-10" {...field} />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+
+                      <FormField control={form.control} name="email" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email Address *</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <Input type="email" placeholder="you@example.com" className="pl-10" {...field} />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="phone" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone Number</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <Input type="tel" placeholder="+91 98765 43210" className="pl-10" {...field} />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+
+                      <FormField control={form.control} name="password" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password *</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <Input type={showPassword ? "text" : "password"} placeholder="Min. 6 characters" className="pl-10 pr-10" {...field} />
+                              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                              </button>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+
+                    {role === "employer" && (
+                      <FormField control={form.control} name="company" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Company Name *</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <Input placeholder="Acme Technologies Pvt. Ltd." className="pl-10" {...field} />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    )}
+
+                    <Button type="button" className="w-full h-11 gap-2 font-semibold" onClick={nextStep}>
+                      Continue <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+
+                {step === 2 && (
+                  <div className="space-y-5">
+                    <div className="text-center mb-2">
+                      <h3 className="font-semibold text-lg text-gray-900 dark:text-white">Tell us about yourself</h3>
+                      <p className="text-sm text-gray-500">Help us personalize your experience (optional)</p>
+                    </div>
+
+                    {role === "candidate" && (
+                      <>
+                        <FormField control={form.control} name="fieldOfInterest" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Field of Interest</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger><SelectValue placeholder="Select your primary field" /></SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {FIELDS_OF_INTEREST.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+
+                        <FormField control={form.control} name="experienceLevel" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Experience Level</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger><SelectValue placeholder="How many years of experience?" /></SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {EXPERIENCE_LEVELS.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      </>
+                    )}
+
+                    <FormField control={form.control} name="currentLocation" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Current Location</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. Noida, Delhi, Bangalore..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-4 text-sm text-blue-700 dark:text-blue-300">
+                      <p className="font-medium mb-1">Almost there!</p>
+                      <p className="text-xs opacity-80">This information helps us suggest relevant jobs and personalize your dashboard.</p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button type="button" variant="outline" className="flex-1 h-11" onClick={() => setStep(1)}>Back</Button>
+                      <Button type="submit" className="flex-1 h-11 gap-2 font-semibold" disabled={form.formState.isSubmitting}>
+                        {form.formState.isSubmitting ? "Creating..." : <><CheckCircle2 className="w-4 h-4" /> Create Account</>}
+                      </Button>
+                    </div>
+
+                    <button type="button" onClick={form.handleSubmit(onSubmit)} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 hover:underline">
+                      Skip and create account
+                    </button>
+                  </div>
+                )}
+              </form>
+            </Form>
+
+            {step === 1 && (
+              <div className="mt-5 text-center text-sm text-gray-500">
+                Already have an account?{" "}
+                <Link href="/login" className="font-semibold text-primary hover:underline">Log in</Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
