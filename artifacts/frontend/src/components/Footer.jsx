@@ -10,7 +10,7 @@ const footerLinks = {
     { label: "Jobs in Pune", href: "/jobs?location=Pune" },
     { label: "Work From Home Jobs", href: "/jobs?type=Remote" },
     { label: "Fresher Jobs", href: "/jobs?experience=Fresher" },
-    { label: "Walk-in Jobs", href: "/jobs" },
+    { label: "Walk-in Jobs", href: "/jobs?type=walk-in" },
   ],
   "Top Categories": [
     { label: "IT & Software", href: "/jobs?category=IT" },

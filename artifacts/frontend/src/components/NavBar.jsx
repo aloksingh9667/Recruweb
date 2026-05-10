@@ -217,8 +217,8 @@ export function NavBar() {
               </>
             ) : (
               <>
-                <NavItem href="/register?role=candidate" icon={FileText} label="Upload Resume" desc="Join as a candidate" />
-                <NavItem href="/register?role=candidate" icon={Wand2} label="Build Resume" desc="Create with AI" />
+                <NavItem href="/candidate/resume-builder" icon={Wand2} label="Resume Builder" desc="Build your CV with AI" />
+                <NavItem href="/candidate/resume-builder?tab=analyze" icon={BarChart3} label="Resume Analyzer" desc="AI score + suggestions" />
                 <NavItem href="/interview-prep" icon={Brain} label="Interview Preparation" desc="Practice questions" />
                 <NavItem href="/candidate/job-match" icon={Target} label="Job Match AI" desc="AI-powered matching" />
               </>

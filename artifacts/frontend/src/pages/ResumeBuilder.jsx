@@ -289,7 +289,10 @@ function CVPreview({ template, data }) {
 export default function ResumeBuilder() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState("builder");
+  const [activeTab, setActiveTab] = useState(() => {
+    const p = new URLSearchParams(window.location.search);
+    return p.get("tab") === "analyze" ? "analyze" : "builder";
+  });
   const [selectedTemplate, setSelectedTemplate] = useState("professional");
   const [formData, setFormData] = useState(defaultForm);
   const [showPreview, setShowPreview] = useState(false);
@@ -308,17 +311,6 @@ export default function ResumeBuilder() {
   const [analysis, setAnalysis] = useState(null);
   const [analyzeError, setAnalyzeError] = useState("");
 
-  if (!user) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <FileText className="w-12 h-12 text-muted-foreground mx-auto" />
-          <h2 className="text-xl font-semibold">Sign in required</h2>
-          <Button onClick={() => navigate("/login")}>Sign In</Button>
-        </div>
-      </div>
-    );
-  }
 
   const updateField = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
   const updateExp = (i, field, value) => {

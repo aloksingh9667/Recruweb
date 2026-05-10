@@ -61,18 +61,16 @@ function App() {
                     {/* Settings */}
                     <Route path="/settings" component={ProfileSettings} />
 
+                    {/* Public career tools */}
+                    <Route path="/candidate/resume-builder" component={ResumeBuilder} />
+                    <Route path="/candidate/job-match" component={JobMatch} />
+
                     {/* Candidate Protected Routes */}
                     <Route path="/candidate/dashboard">
                       <ProtectedRoute component={CandidateDashboard} allowedRole="candidate" />
                     </Route>
                     <Route path="/candidate/profile">
                       <ProtectedRoute component={CandidateProfile} allowedRole="candidate" />
-                    </Route>
-                    <Route path="/candidate/resume-builder">
-                      <ProtectedRoute component={ResumeBuilder} allowedRole="candidate" />
-                    </Route>
-                    <Route path="/candidate/job-match">
-                      <ProtectedRoute component={JobMatch} allowedRole="candidate" />
                     </Route>
 
                     {/* Employer Protected Routes */}
