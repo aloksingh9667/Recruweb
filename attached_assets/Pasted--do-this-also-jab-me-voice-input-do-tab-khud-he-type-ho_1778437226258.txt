@@ -1,0 +1,78 @@
+
+
+
+do this also jab me voice input do tab khud he type hoke khud he input o jae aur enter bhi aur ese aur interactive banao bahut he bakwas lag raha h Recruweb AI Assistant
+
+Online · Powered by Gemini AI
+
+Namaste! 👋 I'm your Recruweb AI assistant. I can help you:
+
+🔍 Find the right jobs based on your skills
+🎤 Prepare for interviews with role-specific questions
+📄 Improve your resume for ATS systems
+💬 Customer support for any platform queries
+
+How can I help you today? also this show it in english make it best chat option interacvive ui also on batch icon make it best
+
+
+
+
+[plugin:runtime-error-plugin] savedJobs?.some is not a function
+/home/runner/workspace/artifacts/frontend/src/pages/JobDetail.jsx:44:30
+42 |    );
+43 |  
+44 |    const isSaved = savedJobs?.some(j => j._id === jobId || j.id === jobId);
+   |                               ^
+45 |  
+46 |    const applyMutation = useMutation({
+    at JobDetail /home/runner/workspace/artifacts/frontend/src/pages/JobDetail.jsx:44:30
+
+
+
+
+
+
+
+
+Click outside, press Esc key, or fix the code to dismiss.
+You can also disable this overlay by setting server.hmr.overlay to false in vite.config.ts.
+
+
+
+
+
+
+
+
+[plugin:runtime-error-plugin] jobs.map is not a function
+/home/runner/workspace/artifacts/frontend/src/pages/SavedJobs.jsx:71:17
+69 |        ) : (
+70 |          <div className="space-y-4">
+71 |            {jobs.map(job => (
+   |                  ^
+72 |              <Card key={job._id || job.id} className="hover:shadow-md transition-shadow">
+73 |                <CardContent className="p-5">
+    at SavedJobs /home/runner/workspace/artifacts/frontend/src/pages/SavedJobs.jsx:71:17
+
+
+
+
+
+
+
+
+Click outside, press Esc key, or fix the code to dismiss.
+You can also disable this overlay by setting server.hmr.overlay to false in vite.config.ts.
+
+
+
+
+
+
+
+
+
+
+Failed to load resource: the server responded with a status of 401 (Unauthorized)Understand this error
+/api/auth/login:1  Failed to load resource: the server responded with a status of 401 (Unauthorized) it show invalid admin credentials 
+
