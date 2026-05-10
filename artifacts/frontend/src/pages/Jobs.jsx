@@ -7,13 +7,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   Search, MapPin, Briefcase, IndianRupee, Clock, Bookmark,
   BookmarkCheck, SlidersHorizontal, X, ChevronDown, ChevronUp,
-  Star, Building2, Users, TrendingUp,
+  Star, Building2, Users, TrendingUp, Send,
 } from "lucide-react";
 import { formatDistanceToNow, subDays, subHours } from "date-fns";
-import { useAuth } from "@/contexts/AuthContext";
 
 const LOCATIONS = ["Mumbai", "Bangalore", "Delhi", "Hyderabad", "Pune", "Chennai", "Kolkata", "Noida", "Gurgaon", "Remote"];
 const CATEGORIES = ["IT/Software", "Marketing", "Sales", "HR", "Finance", "Operations", "Design", "Data Science", "Other"];
@@ -108,7 +109,7 @@ function FilterSection({ title, children, defaultOpen = true }) {
   );
 }
 
-function NaukriJobCard({ job, isSaved, onSaveToggle }) {
+function NaukriJobCard({ job, isSaved, onSaveToggle, onApply, hasApplied, isCandidate }) {
   const initials = companyInitials(job.company || job.employer?.company);
   const color = companyColor(job.company || job.employer?.company);
   const postedAgo = job.createdAt ? formatDistanceToNow(new Date(job.createdAt), { addSuffix: true }) : "";
@@ -123,7 +124,7 @@ function NaukriJobCard({ job, isSaved, onSaveToggle }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <Link href={`/jobs/${job.id}`}>
+              <Link href={`/jobs/${job.id || job._id}`}>
                 <h3 className="font-semibold text-blue-700 dark:text-blue-400 text-base hover:underline cursor-pointer leading-snug line-clamp-1">
                   {job.title}
                 </h3>
@@ -138,18 +139,36 @@ function NaukriJobCard({ job, isSaved, onSaveToggle }) {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={() => setSaved(s => !s)}
-                className={`p-1.5 rounded-full transition-colors ${saved ? "text-blue-600" : "text-gray-400 hover:text-blue-500"}`}
-                title={saved ? "Saved" : "Save job"}
-              >
-                {saved ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
-              </button>
-              <Link href={`/jobs/${job.id}`}>
-                <Button size="sm" className="bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border border-blue-400 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white transition-colors text-xs px-4 h-8 font-medium">
-                  Apply
-                </Button>
-              </Link>
+              {isCandidate && (
+                <button
+                  onClick={() => onSaveToggle(job.id || job._id, isSaved)}
+                  className={`p-1.5 rounded-full transition-colors ${isSaved ? "text-blue-600" : "text-gray-400 hover:text-blue-500"}`}
+                  title={isSaved ? "Saved" : "Save job"}
+                >
+                  {isSaved ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
+                </button>
+              )}
+              {isCandidate ? (
+                hasApplied ? (
+                  <span className="text-xs px-3 h-8 flex items-center font-medium text-green-600 bg-green-50 border border-green-200 rounded-md">
+                    Applied ✓
+                  </span>
+                ) : (
+                  <Button
+                    size="sm"
+                    onClick={() => onApply(job)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 h-8 font-medium"
+                  >
+                    Apply
+                  </Button>
+                )
+              ) : (
+                <Link href={`/jobs/${job.id || job._id}`}>
+                  <Button size="sm" className="bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border border-blue-400 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white transition-colors text-xs px-4 h-8 font-medium">
+                    View
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
 
@@ -230,6 +249,7 @@ export default function Jobs() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isCandidate = user?.role === "candidate";
   const init = parseParamsToState(window.location.search);
 
   const [searchInput, setSearchInput] = useState(init.q);
@@ -250,6 +270,9 @@ export default function Jobs() {
 
   const [locationSearch, setLocationSearch] = useState("");
   const [sortBy, setSortBy] = useState(init.sort === "salary" ? "salary" : (init.featured ? "popular" : "date"));
+
+  const [applyDialogJob, setApplyDialogJob] = useState(null);
+  const [coverLetter, setCoverLetter] = useState("");
 
   useEffect(() => {
     const s = parseParamsToState(woSearch || window.location.search);
@@ -275,6 +298,76 @@ export default function Jobs() {
     queryFn: () => fetchApi(`/jobs?limit=100`),
     staleTime: 60000,
   });
+
+  const { data: savedJobsRaw } = useQuery({
+    queryKey: ["savedJobs"],
+    queryFn: () => fetchApi("/jobs/saved/my"),
+    enabled: isCandidate,
+  });
+  const savedJobIds = useMemo(() => {
+    const list = Array.isArray(savedJobsRaw) ? savedJobsRaw : (savedJobsRaw?.jobs ?? []);
+    return new Set(list.map(j => j._id || j.id));
+  }, [savedJobsRaw]);
+
+  const { data: myApplicationsRaw } = useQuery({
+    queryKey: ["myApplications"],
+    queryFn: () => fetchApi("/applications/my"),
+    enabled: isCandidate,
+  });
+  const appliedJobIds = useMemo(() => {
+    const apps = myApplicationsRaw?.applications ?? [];
+    return new Set(apps.map(a => a.jobId?._id || a.jobId?.id || a.jobId));
+  }, [myApplicationsRaw]);
+
+  const saveMutation = useMutation({
+    mutationFn: ({ jobId, isSaved }) =>
+      isSaved
+        ? fetchApi(`/jobs/${jobId}/save`, { method: "DELETE" })
+        : fetchApi(`/jobs/${jobId}/save`, { method: "POST" }),
+    onSuccess: (_, { isSaved }) => {
+      queryClient.invalidateQueries({ queryKey: ["savedJobs"] });
+      toast({ title: isSaved ? "Job removed from saved" : "Job saved successfully" });
+    },
+    onError: (err) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const applyMutation = useMutation({
+    mutationFn: ({ jobId, coverLetter }) =>
+      fetchApi("/applications", { method: "POST", body: JSON.stringify({ jobId, coverLetter }) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["myApplications"] });
+      toast({ title: "Application submitted!", description: "Your application has been sent successfully." });
+      setApplyDialogJob(null);
+      setCoverLetter("");
+    },
+    onError: (err) => {
+      toast({ title: "Application failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const handleSaveToggle = useCallback((jobId, isSaved) => {
+    if (!isCandidate) {
+      toast({ title: "Sign in required", description: "Please log in as a candidate to save jobs.", variant: "destructive" });
+      return;
+    }
+    saveMutation.mutate({ jobId, isSaved });
+  }, [isCandidate, saveMutation, toast]);
+
+  const handleApply = useCallback((job) => {
+    if (!isCandidate) {
+      toast({ title: "Sign in required", description: "Please log in as a candidate to apply.", variant: "destructive" });
+      return;
+    }
+    setApplyDialogJob(job);
+    setCoverLetter("");
+  }, [isCandidate, toast]);
+
+  const handleApplySubmit = () => {
+    if (!applyDialogJob) return;
+    applyMutation.mutate({ jobId: applyDialogJob.id || applyDialogJob._id, coverLetter });
+  };
 
   const toggle = useCallback((key, value) => {
     setFilters(prev => ({
@@ -388,6 +481,48 @@ export default function Jobs() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      {/* Apply Dialog */}
+      <Dialog open={!!applyDialogJob} onOpenChange={(open) => { if (!open) setApplyDialogJob(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="w-5 h-5 text-blue-600" />
+              Apply for {applyDialogJob?.title}
+            </DialogTitle>
+            <DialogDescription>
+              {applyDialogJob?.company || applyDialogJob?.employer?.company} · {applyDialogJob?.location}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5 block">
+                Cover Letter <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <Textarea
+                placeholder="Write a brief cover letter explaining why you're a great fit..."
+                value={coverLetter}
+                onChange={e => setCoverLetter(e.target.value)}
+                rows={5}
+                className="resize-none"
+              />
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setApplyDialogJob(null)}>
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white gap-2"
+                onClick={handleApplySubmit}
+                disabled={applyMutation.isPending}
+              >
+                <Send className="w-4 h-4" />
+                {applyMutation.isPending ? "Submitting..." : "Submit Application"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Top search bar */}
       <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm sticky top-[56px] z-20">
         <div className="max-w-6xl mx-auto px-4 py-3">
@@ -526,7 +661,8 @@ export default function Jobs() {
                   ) : (
                     <>
                       <span className="text-blue-700 dark:text-blue-400 font-bold">{filteredJobs.length}</span>
-                      {" "}{activeSearch ? `jobs for "${activeSearch}"` : "jobs found"}
+                      {" "}job{filteredJobs.length !== 1 ? "s" : ""} found
+                      {activeSearch && <span className="text-gray-500 font-normal"> for "{activeSearch}"</span>}
                     </>
                   )}
                 </h2>
@@ -597,7 +733,15 @@ export default function Jobs() {
             ) : filteredJobs.length > 0 ? (
               <div className="space-y-3">
                 {filteredJobs.map(job => (
-                  <NaukriJobCard key={job.id} job={job} />
+                  <NaukriJobCard
+                    key={job.id || job._id}
+                    job={job}
+                    isSaved={savedJobIds.has(job.id || job._id)}
+                    onSaveToggle={handleSaveToggle}
+                    onApply={handleApply}
+                    hasApplied={appliedJobIds.has(job.id || job._id)}
+                    isCandidate={isCandidate}
+                  />
                 ))}
               </div>
             ) : (

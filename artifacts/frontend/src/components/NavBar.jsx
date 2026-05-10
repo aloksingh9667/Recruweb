@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api";
+import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -16,7 +17,7 @@ import {
   Wand2, TrendingUp, Layers, BarChart3, Plus,
   Users, HelpCircle, Phone, Mail, AlertCircle, Settings, Moon, Sun,
   Bell, Menu, Home, ClipboardList, CheckSquare, Trophy, ChevronRight,
-  Sparkles, UserCheck, Zap,
+  Sparkles, UserCheck, Zap, Calendar,
 } from "lucide-react";
 
 function NavDropdown({ trigger, children }) {
@@ -74,23 +75,80 @@ function MobileLink({ href, icon: Icon, label, onClick }) {
   );
 }
 
-const EMPLOYER_MOCK_NOTIFICATIONS = [
-  { id: 1, type: "match", icon: UserCheck, color: "text-green-600", bg: "bg-green-50 dark:bg-green-900/20", title: "95% Resume Match!", desc: "Priya Sharma matched your React Developer role", jobTitle: "React Developer", time: "2 min ago", href: "/employer/applications" },
-  { id: 2, type: "match", icon: Zap, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-900/20", title: "New Application — 88% Match", desc: "Rahul Gupta applied to Data Scientist", jobTitle: "Data Scientist", time: "15 min ago", href: "/employer/applications" },
-  { id: 3, type: "match", icon: Star, color: "text-yellow-600", bg: "bg-yellow-50 dark:bg-yellow-900/20", title: "Top Candidate Alert!", desc: "Amit Kumar is a 92% match for DevOps Engineer", jobTitle: "DevOps Engineer", time: "1 hr ago", href: "/employer/applications" },
-  { id: 4, type: "match", icon: Users, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-900/20", title: "3 New Applicants Today", desc: "Your Product Manager role got 3 new applications", jobTitle: "Product Manager", time: "3 hrs ago", href: "/employer/applications" },
-];
-
-const CANDIDATE_MOCK_NOTIFICATIONS = [
-  { id: 1, icon: CheckSquare, color: "text-teal-600", bg: "bg-teal-50 dark:bg-teal-900/20", title: "Interview Scheduled!", desc: "TCS Digital invited you for interview", time: "1 hr ago", href: "/applications" },
-  { id: 2, icon: Star, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-900/20", title: "You were shortlisted!", desc: "Infosys shortlisted you for Data Analyst", time: "3 hrs ago", href: "/applications" },
-  { id: 3, icon: FileText, color: "text-blue-600", bg: "bg-blue-50 dark:bg-blue-900/20", title: "Application Reviewed", desc: "Wipro reviewed your application", time: "5 hrs ago", href: "/applications" },
-];
+function statusToNotif(app) {
+  const jobTitle = app.job?.title || app.jobId?.title || "a job";
+  const company = app.job?.company || app.jobId?.company || app.jobId?.employer?.company || "";
+  const companyStr = company ? ` at ${company}` : "";
+  const map = {
+    reviewed:            { icon: FileText,    color: "text-blue-600",   bg: "bg-blue-50 dark:bg-blue-900/20",   title: "Application Under Review", desc: `Your application for ${jobTitle}${companyStr} is being reviewed` },
+    shortlisted:         { icon: CheckSquare, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-900/20", title: "You've Been Shortlisted!", desc: `Shortlisted for ${jobTitle}${companyStr}` },
+    interview_scheduled: { icon: Calendar,    color: "text-teal-600",   bg: "bg-teal-50 dark:bg-teal-900/20",   title: "Interview Scheduled!", desc: `Interview scheduled for ${jobTitle}${companyStr}` },
+    hired:               { icon: Trophy,      color: "text-green-600",  bg: "bg-green-50 dark:bg-green-900/20", title: "Congratulations! You're Hired!", desc: `Offer received for ${jobTitle}${companyStr}` },
+    rejected:            { icon: AlertCircle, color: "text-red-500",    bg: "bg-red-50 dark:bg-red-900/20",     title: "Application Not Selected", desc: `Application for ${jobTitle}${companyStr} was not selected` },
+    pending:             { icon: FileText,    color: "text-blue-500",   bg: "bg-blue-50 dark:bg-blue-900/20",   title: "Application Submitted", desc: `Applied for ${jobTitle}${companyStr}` },
+  };
+  return map[app.status] || map.pending;
+}
 
 function NotificationBell({ isCandidate, isEmployer }) {
   const [open, setOpen] = useState(false);
   const [, setLocation] = useLocation();
-  const notifications = isEmployer ? EMPLOYER_MOCK_NOTIFICATIONS : CANDIDATE_MOCK_NOTIFICATIONS;
+
+  const { data: candidateAppsData } = useQuery({
+    queryKey: ["myApplications"],
+    queryFn: () => fetchApi("/applications/my"),
+    enabled: isCandidate,
+    staleTime: 30000,
+  });
+
+  const { data: employerAppsData } = useQuery({
+    queryKey: ["employerApplications"],
+    queryFn: () => fetchApi("/applications/employer/all"),
+    enabled: isEmployer,
+    staleTime: 30000,
+  });
+
+  const notifications = useMemo(() => {
+    if (isCandidate) {
+      const apps = candidateAppsData?.applications || [];
+      return apps
+        .filter(a => a.status !== "pending")
+        .slice(0, 5)
+        .map((app, i) => {
+          const n = statusToNotif(app);
+          return {
+            id: i,
+            icon: n.icon,
+            color: n.color,
+            bg: n.bg,
+            title: n.title,
+            desc: n.desc,
+            time: app.updatedAt ? formatDistanceToNow(new Date(app.updatedAt), { addSuffix: true }) : "",
+            href: `/applications?tab=${app.status === "interview_scheduled" ? "interview" : app.status === "shortlisted" ? "shortlisted" : "all"}`,
+          };
+        });
+    }
+    if (isEmployer) {
+      const apps = employerAppsData?.applications || [];
+      return apps.slice(0, 5).map((app, i) => {
+        const jobTitle = app.job?.title || "a position";
+        const candidateName = app.candidate?.name || app.candidate?.user?.name || "A candidate";
+        return {
+          id: i,
+          icon: Users,
+          color: "text-blue-600",
+          bg: "bg-blue-50 dark:bg-blue-900/20",
+          title: "New Application Received",
+          desc: `${candidateName} applied to ${jobTitle}`,
+          jobTitle,
+          time: app.createdAt ? formatDistanceToNow(new Date(app.createdAt), { addSuffix: true }) : "",
+          href: "/employer/applications",
+        };
+      });
+    }
+    return [];
+  }, [isCandidate, isEmployer, candidateAppsData, employerAppsData]);
+
   const unreadCount = notifications.length;
 
   return (
@@ -111,7 +169,15 @@ function NotificationBell({ isCandidate, isEmployer }) {
           <span className="text-[10px] bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-medium">{unreadCount} new</span>
         </div>
         <div className="max-h-80 overflow-y-auto divide-y divide-border">
-          {notifications.map((notif) => {
+          {notifications.length === 0 ? (
+            <div className="py-10 text-center">
+              <Bell className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground">No notifications yet</p>
+              <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                {isCandidate ? "Apply to jobs to see updates here" : "New applications will appear here"}
+              </p>
+            </div>
+          ) : notifications.map((notif) => {
             const Icon = notif.icon;
             return (
               <div

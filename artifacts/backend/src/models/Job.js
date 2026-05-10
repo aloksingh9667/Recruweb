@@ -15,6 +15,7 @@ const jobSchema = new mongoose.Schema({
   salaryRange: { type: String },
   skills: [{ type: String }],
   employerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  experienceRequired: { type: String },
   isActive: { type: Boolean, default: true },
   applicantCount: { type: Number, default: 0 },
   savedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],

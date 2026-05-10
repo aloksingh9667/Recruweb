@@ -61,7 +61,7 @@ export function AIChatbot() {
   const [minimized, setMin]     = useState(false);
   const [messages, setMessages] = useState([{
     role: "assistant", ts: Date.now(),
-    content: "Hi there! 👋 I'm your **Recruweb AI Career Assistant**, powered by Gemini.\n\nI'm here to help you:\n• 🔍 **Find the right jobs** for your skills & experience\n• 🎯 **Ace interviews** with role-specific prep tips\n• 📄 **Boost your resume** for ATS and recruiters\n• 💬 **Solve any Recruweb** platform queries\n\nPick a quick action or just type your question below!",
+    content: "Hi there! 👋 I'm your **Recruweb AI Career Assistant**, powered by Gemini.\n\nI'm here to help you:\n• 🔍 **Find the right jobs** for your skills & experience\n• 🎯 **Ace interviews** with role-specific prep tips\n• 📄 **Boost your resume** for ATS and recruiters\n• 💬 **Answer any questions** about the platform\n\nJust type your question below and I'll help you out!",
   }]);
   const [input, setInput]       = useState("");
   const [loading, setLoading]   = useState(false);
