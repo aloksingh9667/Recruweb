@@ -26,6 +26,12 @@ export function AuthProvider({ children }) {
       });
   }, []);
 
+  useEffect(() => {
+    const handler = () => setUser(null);
+    window.addEventListener("recruweb-auth-logout", handler);
+    return () => window.removeEventListener("recruweb-auth-logout", handler);
+  }, []);
+
   const login = (token, userData) => {
     localStorage.setItem("recruweb_token", token);
     setUser(userData);

@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -170,7 +170,20 @@ const TABS = [
 export default function ApplicationsPage() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState("all");
+  const woSearch = useSearch();
+  const [activeTab, setActiveTab] = useState(() => {
+    const p = new URLSearchParams(window.location.search);
+    const tab = p.get("tab");
+    return TABS.find(t => t.id === tab) ? tab : "all";
+  });
+
+  useEffect(() => {
+    const p = new URLSearchParams(woSearch);
+    const tab = p.get("tab");
+    if (tab && TABS.find(t => t.id === tab)) {
+      setActiveTab(tab);
+    }
+  }, [woSearch]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["myApplications"],

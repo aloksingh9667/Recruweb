@@ -26,6 +26,10 @@ export async function fetchApi(endpoint, options = {}) {
     } catch (e) {
       // Ignore JSON parse error
     }
+    if (response.status === 401) {
+      localStorage.removeItem("recruweb_token");
+      window.dispatchEvent(new Event("recruweb-auth-logout"));
+    }
     throw new Error(message);
   }
 

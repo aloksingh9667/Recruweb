@@ -3,36 +3,8 @@ import { fetchApi } from "@/lib/api";
 import { useLocation } from "wouter";
 import {
   X, Send, Mic, MicOff, Volume2, VolumeX,
-  Search, Brain, FileText, HelpCircle, Minimize2,
-  Sparkles, ChevronDown, RotateCcw,
+  Minimize2, Sparkles, ChevronDown, RotateCcw,
 } from "lucide-react";
-
-const QUICK_ACTIONS = [
-  {
-    icon: Search, label: "Find Jobs", emoji: "🔍",
-    color: "#4f46e5", bg: "linear-gradient(135deg,#eef2ff,#e0e7ff)",
-    msg: "Help me find relevant jobs on Recruweb based on my skills.",
-    desc: "Browse live openings",
-  },
-  {
-    icon: Brain, label: "Interview Prep", emoji: "🎯",
-    color: "#7c3aed", bg: "linear-gradient(135deg,#f5f3ff,#ede9fe)",
-    msg: "Help me prepare for my interview with role-specific questions and tips.",
-    desc: "Ace your next round",
-  },
-  {
-    icon: FileText, label: "Resume Tips", emoji: "📄",
-    color: "#0891b2", bg: "linear-gradient(135deg,#ecfeff,#cffafe)",
-    msg: "Give me tips to improve my resume and make it ATS-friendly.",
-    desc: "Beat ATS systems",
-  },
-  {
-    icon: HelpCircle, label: "Support", emoji: "💬",
-    color: "#059669", bg: "linear-gradient(135deg,#ecfdf5,#d1fae5)",
-    msg: "I need help with the Recruweb platform.",
-    desc: "Platform queries",
-  },
-];
 
 const FOLLOW_UP_CHIPS = [
   ["Show me jobs in Bangalore", "Jobs in Delhi NCR", "Remote jobs"],
@@ -508,36 +480,6 @@ export function AIChatbot() {
             )}
             <div ref={endRef} />
           </div>
-
-          {/* QUICK ACTIONS — shown before first user message */}
-          {showWelcome && messages.length === 1 && (
-            <div style={{ padding:"10px 12px 6px",borderTop:"1px solid #ede9fe",background:"#faf9ff",flexShrink:0 }}>
-              <p style={{ fontSize:10,color:"#a78bfa",fontWeight:800,letterSpacing:".07em",textTransform:"uppercase",marginBottom:8 }}>
-                Quick Actions
-              </p>
-              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:7 }}>
-                {QUICK_ACTIONS.map(({ icon: Icon, label, emoji, color, bg, msg, desc }) => (
-                  <button key={label}
-                    onClick={() => { setWelcome(false); sendMessage(msg); }}
-                    style={{
-                      display:"flex",flexDirection:"column",alignItems:"flex-start",
-                      padding:"9px 11px",borderRadius:12,
-                      background: bg, border:`1.5px solid ${color}28`,
-                      cursor:"pointer",transition:"all .18s",textAlign:"left",
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.transform="translateY(-2px)"; e.currentTarget.style.boxShadow=`0 6px 16px ${color}22`; e.currentTarget.style.borderColor=`${color}60`; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform=""; e.currentTarget.style.boxShadow=""; e.currentTarget.style.borderColor=`${color}28`; }}
-                  >
-                    <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:3 }}>
-                      <span style={{ fontSize:14 }}>{emoji}</span>
-                      <span style={{ fontSize:12,fontWeight:700,color }}>{label}</span>
-                    </div>
-                    <span style={{ fontSize:10,color:"#6b7280" }}>{desc}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* FOLLOW-UP CHIPS — shown after AI responds */}
           {!showWelcome && messages.length > 1 && !loading && (

@@ -1,7 +1,9 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -106,8 +108,7 @@ function FilterSection({ title, children, defaultOpen = true }) {
   );
 }
 
-function NaukriJobCard({ job }) {
-  const [saved, setSaved] = useState(false);
+function NaukriJobCard({ job, isSaved, onSaveToggle }) {
   const initials = companyInitials(job.company || job.employer?.company);
   const color = companyColor(job.company || job.employer?.company);
   const postedAgo = job.createdAt ? formatDistanceToNow(new Date(job.createdAt), { addSuffix: true }) : "";
@@ -211,6 +212,8 @@ function parseParamsToState(search) {
   const sort = p.get("sort") || "date";
   const exp = p.get("experience") || "";
   const q = p.get("search") || "";
+  const featured = p.get("featured") === "true";
+  const walkIn = type === "walk-in";
 
   const workModes = type === "Remote" ? ["Work from home"] : [];
   const jobTypes = (type && type !== "Remote" && type !== "walk-in") ? [type] : [];
@@ -218,16 +221,22 @@ function parseParamsToState(search) {
   const categories = cat ? [cat] : [];
   const experience = exp === "Fresher" ? ["Fresher (0-1 yr)"] : exp ? [exp] : [];
 
-  return { locations, jobTypes, categories, workModes, experience, sort, q, locationInput: loc };
+  return { locations, jobTypes, categories, workModes, experience, sort, q, locationInput: loc, walkIn, featured };
 }
 
 export default function Jobs() {
   const [woLocation] = useLocation();
+  const woSearch = useSearch();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const init = parseParamsToState(window.location.search);
 
   const [searchInput, setSearchInput] = useState(init.q);
   const [locationInput, setLocationInput] = useState(init.locationInput);
   const [activeSearch, setActiveSearch] = useState(init.q);
+  const [walkInFilter, setWalkInFilter] = useState(init.walkIn);
+  const [featuredFilter, setFeaturedFilter] = useState(init.featured);
 
   const [filters, setFilters] = useState({
     locations: init.locations,
@@ -240,10 +249,10 @@ export default function Jobs() {
   });
 
   const [locationSearch, setLocationSearch] = useState("");
-  const [sortBy, setSortBy] = useState(init.sort === "salary" ? "salary" : "date");
+  const [sortBy, setSortBy] = useState(init.sort === "salary" ? "salary" : (init.featured ? "popular" : "date"));
 
   useEffect(() => {
-    const s = parseParamsToState(window.location.search);
+    const s = parseParamsToState(woSearch || window.location.search);
     setFilters({
       locations: s.locations,
       jobTypes: s.jobTypes,
@@ -253,11 +262,13 @@ export default function Jobs() {
       salary: [],
       datePosted: "any",
     });
-    setSortBy(s.sort === "salary" ? "salary" : "date");
+    setSortBy(s.sort === "salary" ? "salary" : (s.featured ? "popular" : "date"));
     setSearchInput(s.q);
     setActiveSearch(s.q);
     setLocationInput(s.locationInput);
-  }, [woLocation]);
+    setWalkInFilter(s.walkIn);
+    setFeaturedFilter(s.featured);
+  }, [woSearch]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["jobs-all"],
