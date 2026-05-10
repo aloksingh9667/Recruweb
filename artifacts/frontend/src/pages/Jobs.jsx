@@ -1,146 +1,575 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api";
-import { JobCard } from "@/components/JobCard";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useLocation } from "wouter";
-import { Search } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Search, MapPin, Briefcase, IndianRupee, Clock, Bookmark,
+  BookmarkCheck, SlidersHorizontal, X, ChevronDown, ChevronUp,
+  Star, Building2, Users, TrendingUp,
+} from "lucide-react";
+import { formatDistanceToNow, subDays, subHours } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
 
-export default function Jobs() {
-  const [location] = useLocation();
-  const searchParams = new URLSearchParams(window.location.search);
-  
-  const [search, setSearch] = useState(searchParams.get("search") || "");
-  const [category, setCategory] = useState(searchParams.get("category") || "all");
-  const [employmentType, setEmploymentType] = useState(searchParams.get("employmentType") || "all");
-  const [jobLocation, setJobLocation] = useState(searchParams.get("location") || "");
-  
-  // Use state for actual queries to avoid refetching on every keystroke
-  const [queryParams, setQueryParams] = useState({
-    search: searchParams.get("search") || "",
-    category: searchParams.get("category") || "all",
-    employmentType: searchParams.get("employmentType") || "all",
-    location: searchParams.get("location") || "",
-  });
+const LOCATIONS = ["Mumbai", "Bangalore", "Delhi", "Hyderabad", "Pune", "Chennai", "Kolkata", "Noida", "Gurgaon", "Remote"];
+const CATEGORIES = ["IT/Software", "Marketing", "Sales", "HR", "Finance", "Operations", "Design", "Data Science", "Other"];
+const WORK_MODES = ["Work from home", "Work from office", "Hybrid"];
+const EXP_OPTIONS = [
+  { label: "Fresher (0-1 yr)", min: 0, max: 1 },
+  { label: "1-3 years", min: 1, max: 3 },
+  { label: "3-5 years", min: 3, max: 5 },
+  { label: "5-7 years", min: 5, max: 7 },
+  { label: "7-10 years", min: 7, max: 10 },
+  { label: "10+ years", min: 10, max: 99 },
+];
+const SALARY_OPTIONS = [
+  { label: "0-3 Lakhs", min: 0, max: 3 },
+  { label: "3-6 Lakhs", min: 3, max: 6 },
+  { label: "6-10 Lakhs", min: 6, max: 10 },
+  { label: "10-15 Lakhs", min: 10, max: 15 },
+  { label: "15-25 Lakhs", min: 15, max: 25 },
+  { label: "25-50 Lakhs", min: 25, max: 50 },
+  { label: "50+ Lakhs", min: 50, max: 999 },
+];
+const DATE_OPTIONS = [
+  { label: "Any time", value: "any" },
+  { label: "Last 24 hours", value: "1day" },
+  { label: "Last 3 days", value: "3days" },
+  { label: "Last week", value: "1week" },
+  { label: "Last month", value: "1month" },
+];
+const JOB_TYPES = ["full-time", "part-time", "contract", "internship", "remote"];
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["jobs", queryParams],
-    queryFn: () => {
-      const params = new URLSearchParams();
-      if (queryParams.search) params.append("search", queryParams.search);
-      if (queryParams.category !== "all") params.append("category", queryParams.category);
-      if (queryParams.employmentType !== "all") params.append("employmentType", queryParams.employmentType);
-      if (queryParams.location) params.append("location", queryParams.location);
-      return fetchApi(`/jobs?${params.toString()}`);
-    },
-  });
+function parseSalaryLPA(salaryStr) {
+  if (!salaryStr) return null;
+  const nums = salaryStr.match(/\d+(\.\d+)?/g);
+  if (!nums || nums.length === 0) return null;
+  const avg = nums.reduce((s, n) => s + parseFloat(n), 0) / nums.length;
+  if (salaryStr.toLowerCase().includes("lpa") || salaryStr.includes("L") || salaryStr.includes("l")) return avg;
+  if (avg > 1000) return avg / 100000;
+  return avg;
+}
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setQueryParams({
-      search,
-      category,
-      employmentType,
-      location: jobLocation
-    });
-    
-    // Update URL
-    const urlParams = new URLSearchParams();
-    if (search) urlParams.append("search", search);
-    if (category !== "all") urlParams.append("category", category);
-    if (employmentType !== "all") urlParams.append("employmentType", employmentType);
-    if (jobLocation) urlParams.append("location", jobLocation);
-    const newUrl = `/jobs${urlParams.toString() ? `?${urlParams.toString()}` : ""}`;
-    window.history.replaceState(null, "", newUrl);
-  };
+function parseExpYears(expStr) {
+  if (!expStr) return null;
+  const nums = expStr.match(/\d+/g);
+  if (!nums) return null;
+  return parseFloat(nums[0]);
+}
 
-  const categories = ["IT/Software", "Marketing", "Sales", "HR", "Finance", "Operations", "Design", "Other"];
-  const employmentTypes = ["full-time", "part-time", "contract", "internship", "remote"];
+function companyInitials(name) {
+  if (!name) return "?";
+  return name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
+}
+
+const COMPANY_COLORS = [
+  "bg-blue-600", "bg-indigo-600", "bg-purple-600", "bg-teal-600",
+  "bg-emerald-600", "bg-orange-500", "bg-red-500", "bg-pink-600",
+  "bg-cyan-600", "bg-amber-600",
+];
+function companyColor(name) {
+  if (!name) return COMPANY_COLORS[0];
+  let h = 0;
+  for (let c of name) h = (h * 31 + c.charCodeAt(0)) & 0xfffff;
+  return COMPANY_COLORS[Math.abs(h) % COMPANY_COLORS.length];
+}
+
+function CheckItem({ checked, onChange, label }) {
+  return (
+    <label className="flex items-center gap-2 py-1 cursor-pointer group">
+      <div
+        onClick={onChange}
+        className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${checked ? "bg-blue-600 border-blue-600" : "border-gray-300 group-hover:border-blue-400"}`}
+      >
+        {checked && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 12 12"><path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" /></svg>}
+      </div>
+      <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{label}</span>
+    </label>
+  );
+}
+
+function FilterSection({ title, children, defaultOpen = true }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-b border-gray-100 dark:border-gray-800 pb-4 mb-1">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center justify-between w-full py-2 text-left"
+      >
+        <span className="font-semibold text-sm text-gray-800 dark:text-gray-200">{title}</span>
+        {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+      </button>
+      {open && <div className="mt-1 space-y-0.5">{children}</div>}
+    </div>
+  );
+}
+
+function NaukriJobCard({ job }) {
+  const [saved, setSaved] = useState(false);
+  const initials = companyInitials(job.company || job.employer?.company);
+  const color = companyColor(job.company || job.employer?.company);
+  const postedAgo = job.createdAt ? formatDistanceToNow(new Date(job.createdAt), { addSuffix: true }) : "";
+  const skills = job.skills?.slice(0, 4) || [];
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="mb-8 space-y-4">
-        <h1 className="text-3xl font-bold tracking-tight">Find Jobs</h1>
-        <form onSubmit={handleSearch} className="grid gap-4 md:grid-cols-4 lg:grid-cols-5 items-end bg-card p-4 rounded-xl border shadow-sm">
-          <div className="space-y-2 lg:col-span-2">
-            <label className="text-sm font-medium">Keywords</label>
-            <Input 
-              placeholder="Job title, company..." 
-              value={search} 
-              onChange={e => setSearch(e.target.value)} 
-            />
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-5 hover:shadow-md transition-shadow group">
+      <div className="flex items-start gap-4">
+        <div className={`w-12 h-12 rounded-lg ${color} text-white font-bold text-sm flex items-center justify-center flex-shrink-0 shadow-sm`}>
+          {initials}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <Link href={`/jobs/${job.id}`}>
+                <h3 className="font-semibold text-blue-700 dark:text-blue-400 text-base hover:underline cursor-pointer leading-snug line-clamp-1">
+                  {job.title}
+                </h3>
+              </Link>
+              <p className="text-sm text-gray-700 dark:text-gray-300 mt-0.5 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-gray-400" />
+                {job.company || job.employer?.company || "Company"}
+                <span className="flex items-center gap-0.5 ml-1 text-amber-500">
+                  <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                  <span className="text-xs text-gray-500">{(3.5 + Math.random() * 1.4).toFixed(1)}</span>
+                </span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => setSaved(s => !s)}
+                className={`p-1.5 rounded-full transition-colors ${saved ? "text-blue-600" : "text-gray-400 hover:text-blue-500"}`}
+                title={saved ? "Saved" : "Save job"}
+              >
+                {saved ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
+              </button>
+              <Link href={`/jobs/${job.id}`}>
+                <Button size="sm" className="bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 border border-blue-400 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white transition-colors text-xs px-4 h-8 font-medium">
+                  Apply
+                </Button>
+              </Link>
+            </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Location</label>
-            <Input 
-              placeholder="City or Remote" 
-              value={jobLocation} 
-              onChange={e => setJobLocation(e.target.value)} 
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Category</label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {categories.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2 lg:col-span-1 md:col-span-4 flex justify-end">
-            <Button type="submit" className="w-full">
-              <Search className="h-4 w-4 mr-2" /> Search
-            </Button>
-          </div>
-        </form>
-      </div>
 
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold">
-            {isLoading ? "Searching..." : `${data?.total || 0} Jobs Found`}
-          </h2>
-          <div className="flex gap-2 items-center">
-            <label className="text-sm text-muted-foreground whitespace-nowrap">Job Type:</label>
-            <Select value={employmentType} onValueChange={setEmploymentType}>
-              <SelectTrigger className="w-[140px] h-8">
-                <SelectValue placeholder="Any" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Any</SelectItem>
-                {employmentTypes.map(c => <SelectItem key={c} value={c}>{c.replace("-", " ")}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2.5 text-xs text-gray-500 dark:text-gray-400">
+            <span className="flex items-center gap-1">
+              <Briefcase className="w-3.5 h-3.5" />
+              {job.experienceRequired || "0-5 yrs"}
+            </span>
+            <span className="flex items-center gap-1">
+              <IndianRupee className="w-3.5 h-3.5" />
+              {job.salaryRange || "Not disclosed"}
+            </span>
+            <span className="flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5" />
+              {job.location}
+            </span>
+          </div>
+
+          {skills.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2.5">
+              {skills.map((s, i) => (
+                <span key={i} className="text-[11px] bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 px-2 py-0.5 rounded-full">
+                  {s}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {job.description && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 line-clamp-1">
+              {job.description}
+            </p>
+          )}
+
+          <div className="flex items-center justify-between mt-2.5">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-green-600 dark:text-green-400 font-medium capitalize bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
+                {job.employmentType?.replace("-", " ") || "Full time"}
+              </span>
+              {(job.adminStatus === "approved" || !job.adminStatus) && (
+                <span className="text-[11px] text-blue-600 dark:text-blue-400 font-medium">Actively hiring</span>
+              )}
+            </div>
+            <span className="text-[11px] text-gray-400 flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {postedAgo}
+            </span>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
 
-        {isLoading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1,2,3,4,5,6].map(i => <div key={i} className="border rounded-xl h-48 animate-pulse bg-muted/30"></div>)}
-          </div>
-        ) : data?.jobs?.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {data.jobs.map(job => (
-              <JobCard key={job.id} job={job} />
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-20 border rounded-xl bg-card">
-            <h3 className="text-lg font-medium">No jobs found</h3>
-            <p className="text-muted-foreground mt-2">Try adjusting your filters or search terms.</p>
-            <Button variant="outline" className="mt-4" onClick={() => {
-              setSearch(""); setCategory("all"); setEmploymentType("all"); setJobLocation("");
-              setQueryParams({ search: "", category: "all", employmentType: "all", location: "" });
-            }}>
-              Clear Filters
+export default function Jobs() {
+  const searchParams = new URLSearchParams(window.location.search);
+
+  const [searchInput, setSearchInput] = useState(searchParams.get("search") || "");
+  const [locationInput, setLocationInput] = useState(searchParams.get("location") || "");
+  const [activeSearch, setActiveSearch] = useState(searchParams.get("search") || "");
+
+  const [filters, setFilters] = useState({
+    locations: searchParams.get("location") ? [searchParams.get("location")] : [],
+    jobTypes: [],
+    categories: searchParams.get("category") ? [searchParams.get("category")] : [],
+    workModes: [],
+    experience: [],
+    salary: [],
+    datePosted: "any",
+  });
+
+  const [locationSearch, setLocationSearch] = useState("");
+  const [sortBy, setSortBy] = useState("date");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["jobs-all"],
+    queryFn: () => fetchApi(`/jobs?limit=100`),
+    staleTime: 60000,
+  });
+
+  const toggle = useCallback((key, value) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: prev[key].includes(value)
+        ? prev[key].filter(v => v !== value)
+        : [...prev[key], value],
+    }));
+  }, []);
+
+  const activeFilterCount = useMemo(() =>
+    filters.locations.length + filters.jobTypes.length + filters.categories.length +
+    filters.workModes.length + filters.experience.length + filters.salary.length +
+    (filters.datePosted !== "any" ? 1 : 0), [filters]);
+
+  const clearAll = () => setFilters({
+    locations: [], jobTypes: [], categories: [], workModes: [],
+    experience: [], salary: [], datePosted: "any",
+  });
+
+  const filteredJobs = useMemo(() => {
+    let jobs = data?.jobs || [];
+
+    if (activeSearch) {
+      const q = activeSearch.toLowerCase();
+      jobs = jobs.filter(j =>
+        j.title?.toLowerCase().includes(q) ||
+        (j.company || j.employer?.company || "").toLowerCase().includes(q) ||
+        j.description?.toLowerCase().includes(q) ||
+        j.skills?.some(s => s.toLowerCase().includes(q))
+      );
+    }
+
+    if (filters.locations.length > 0) {
+      jobs = jobs.filter(j => filters.locations.some(loc =>
+        j.location?.toLowerCase().includes(loc.toLowerCase())
+      ));
+    }
+
+    if (filters.jobTypes.length > 0) {
+      jobs = jobs.filter(j => filters.jobTypes.includes(j.employmentType));
+    }
+
+    if (filters.categories.length > 0) {
+      jobs = jobs.filter(j => filters.categories.includes(j.category));
+    }
+
+    if (filters.workModes.length > 0) {
+      jobs = jobs.filter(j => {
+        const loc = j.location?.toLowerCase() || "";
+        const type = j.employmentType?.toLowerCase() || "";
+        return filters.workModes.some(m => {
+          if (m === "Work from home") return loc.includes("remote") || type === "remote";
+          if (m === "Work from office") return !loc.includes("remote") && type !== "remote";
+          if (m === "Hybrid") return loc.includes("hybrid") || j.description?.toLowerCase().includes("hybrid");
+          return false;
+        });
+      });
+    }
+
+    if (filters.salary.length > 0) {
+      jobs = jobs.filter(j => {
+        const lpa = parseSalaryLPA(j.salaryRange);
+        if (lpa === null) return true;
+        return filters.salary.some(s => {
+          const opt = SALARY_OPTIONS.find(o => o.label === s);
+          return opt && lpa >= opt.min && lpa <= opt.max;
+        });
+      });
+    }
+
+    if (filters.experience.length > 0) {
+      jobs = jobs.filter(j => {
+        const exp = parseExpYears(j.experienceRequired);
+        if (exp === null) return true;
+        return filters.experience.some(e => {
+          const opt = EXP_OPTIONS.find(o => o.label === e);
+          return opt && exp >= opt.min && exp <= opt.max;
+        });
+      });
+    }
+
+    if (filters.datePosted !== "any") {
+      const now = new Date();
+      const cutoff = {
+        "1day": subHours(now, 24),
+        "3days": subDays(now, 3),
+        "1week": subDays(now, 7),
+        "1month": subDays(now, 30),
+      }[filters.datePosted];
+      if (cutoff) jobs = jobs.filter(j => j.createdAt && new Date(j.createdAt) >= cutoff);
+    }
+
+    if (sortBy === "date") {
+      jobs = [...jobs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } else if (sortBy === "salary") {
+      jobs = [...jobs].sort((a, b) => (parseSalaryLPA(b.salaryRange) || 0) - (parseSalaryLPA(a.salaryRange) || 0));
+    }
+
+    return jobs;
+  }, [data, activeSearch, filters, sortBy]);
+
+  const handleSearch = (e) => {
+    e?.preventDefault();
+    setActiveSearch(searchInput);
+  };
+
+  const visibleLocations = LOCATIONS.filter(l =>
+    l.toLowerCase().includes(locationSearch.toLowerCase())
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      {/* Top search bar */}
+      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm sticky top-[56px] z-20">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <div className="flex-1 flex items-center gap-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-200 transition-all">
+              <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <input
+                type="text"
+                placeholder="Enter skills / designations / companies"
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400 text-gray-900 dark:text-gray-100"
+              />
+              {searchInput && (
+                <button type="button" onClick={() => { setSearchInput(""); setActiveSearch(""); }}>
+                  <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 min-w-[180px] focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-200 transition-all">
+              <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <input
+                type="text"
+                placeholder="Enter location"
+                value={locationInput}
+                onChange={e => setLocationInput(e.target.value)}
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-gray-400 text-gray-900 dark:text-gray-100"
+              />
+            </div>
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 rounded-lg font-semibold">
+              Search
             </Button>
+          </form>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 py-5">
+        <div className="flex gap-5">
+          {/* LEFT SIDEBAR — Filters */}
+          <aside className="w-60 flex-shrink-0 self-start sticky top-[120px]">
+            <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 dark:border-gray-800">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                  <span className="font-bold text-sm text-gray-800 dark:text-gray-200">All Filters</span>
+                  {activeFilterCount > 0 && (
+                    <span className="bg-blue-600 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{activeFilterCount}</span>
+                  )}
+                </div>
+                {activeFilterCount > 0 && (
+                  <button onClick={clearAll} className="text-xs text-blue-600 hover:underline font-medium">Clear all</button>
+                )}
+              </div>
+
+              <div className="px-4 py-2 max-h-[calc(100vh-180px)] overflow-y-auto">
+                {/* Work Mode */}
+                <FilterSection title="Work Mode">
+                  {WORK_MODES.map(m => (
+                    <CheckItem key={m} checked={filters.workModes.includes(m)} onChange={() => toggle("workModes", m)} label={m} />
+                  ))}
+                </FilterSection>
+
+                {/* Experience */}
+                <FilterSection title="Experience">
+                  {EXP_OPTIONS.map(o => (
+                    <CheckItem key={o.label} checked={filters.experience.includes(o.label)} onChange={() => toggle("experience", o.label)} label={o.label} />
+                  ))}
+                </FilterSection>
+
+                {/* Salary */}
+                <FilterSection title="Salary (per annum)">
+                  {SALARY_OPTIONS.map(o => (
+                    <CheckItem key={o.label} checked={filters.salary.includes(o.label)} onChange={() => toggle("salary", o.label)} label={o.label} />
+                  ))}
+                </FilterSection>
+
+                {/* Location */}
+                <FilterSection title="Location">
+                  <div className="mb-2">
+                    <div className="flex items-center gap-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1">
+                      <Search className="w-3 h-3 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Search location"
+                        value={locationSearch}
+                        onChange={e => setLocationSearch(e.target.value)}
+                        className="text-xs bg-transparent outline-none flex-1 text-gray-700 dark:text-gray-300 placeholder:text-gray-400"
+                      />
+                    </div>
+                  </div>
+                  {visibleLocations.map(loc => (
+                    <CheckItem key={loc} checked={filters.locations.includes(loc)} onChange={() => toggle("locations", loc)} label={loc} />
+                  ))}
+                </FilterSection>
+
+                {/* Job Type */}
+                <FilterSection title="Job Type">
+                  {JOB_TYPES.map(t => (
+                    <CheckItem key={t} checked={filters.jobTypes.includes(t)} onChange={() => toggle("jobTypes", t)} label={t.replace("-", " ").replace(/\b\w/g, c => c.toUpperCase())} />
+                  ))}
+                </FilterSection>
+
+                {/* Category */}
+                <FilterSection title="Department" defaultOpen={false}>
+                  {CATEGORIES.map(c => (
+                    <CheckItem key={c} checked={filters.categories.includes(c)} onChange={() => toggle("categories", c)} label={c} />
+                  ))}
+                </FilterSection>
+
+                {/* Date Posted */}
+                <FilterSection title="Date Posted" defaultOpen={false}>
+                  {DATE_OPTIONS.map(o => (
+                    <label key={o.value} className="flex items-center gap-2 py-1 cursor-pointer group">
+                      <div
+                        onClick={() => setFilters(f => ({ ...f, datePosted: o.value }))}
+                        className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${filters.datePosted === o.value ? "border-blue-600" : "border-gray-300 group-hover:border-blue-400"}`}
+                      >
+                        {filters.datePosted === o.value && <div className="w-2 h-2 rounded-full bg-blue-600" />}
+                      </div>
+                      <span className="text-sm text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{o.label}</span>
+                    </label>
+                  ))}
+                </FilterSection>
+              </div>
+            </div>
+          </aside>
+
+          {/* MAIN CONTENT */}
+          <div className="flex-1 min-w-0">
+            {/* Result header */}
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-base font-semibold text-gray-800 dark:text-gray-200">
+                  {isLoading ? (
+                    <span className="text-gray-400">Searching...</span>
+                  ) : (
+                    <>
+                      <span className="text-blue-700 dark:text-blue-400 font-bold">{filteredJobs.length}</span>
+                      {" "}{activeSearch ? `jobs for "${activeSearch}"` : "jobs found"}
+                    </>
+                  )}
+                </h2>
+                {activeFilterCount > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {filters.locations.map(l => (
+                      <span key={l} className="flex items-center gap-1 text-[11px] bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-full px-2 py-0.5">
+                        {l} <X className="w-2.5 h-2.5 cursor-pointer" onClick={() => toggle("locations", l)} />
+                      </span>
+                    ))}
+                    {filters.jobTypes.map(t => (
+                      <span key={t} className="flex items-center gap-1 text-[11px] bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-full px-2 py-0.5">
+                        {t.replace("-", " ")} <X className="w-2.5 h-2.5 cursor-pointer" onClick={() => toggle("jobTypes", t)} />
+                      </span>
+                    ))}
+                    {filters.categories.map(c => (
+                      <span key={c} className="flex items-center gap-1 text-[11px] bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-full px-2 py-0.5">
+                        {c} <X className="w-2.5 h-2.5 cursor-pointer" onClick={() => toggle("categories", c)} />
+                      </span>
+                    ))}
+                    {filters.salary.map(s => (
+                      <span key={s} className="flex items-center gap-1 text-[11px] bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-full px-2 py-0.5">
+                        {s} <X className="w-2.5 h-2.5 cursor-pointer" onClick={() => toggle("salary", s)} />
+                      </span>
+                    ))}
+                    {filters.experience.map(e => (
+                      <span key={e} className="flex items-center gap-1 text-[11px] bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-full px-2 py-0.5">
+                        {e} <X className="w-2.5 h-2.5 cursor-pointer" onClick={() => toggle("experience", e)} />
+                      </span>
+                    ))}
+                    {filters.workModes.map(m => (
+                      <span key={m} className="flex items-center gap-1 text-[11px] bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-full px-2 py-0.5">
+                        {m} <X className="w-2.5 h-2.5 cursor-pointer" onClick={() => toggle("workModes", m)} />
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-xs text-gray-500">Sort by:</span>
+                <select
+                  value={sortBy}
+                  onChange={e => setSortBy(e.target.value)}
+                  className="text-xs border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 rounded px-2 py-1 outline-none text-gray-700 dark:text-gray-300 cursor-pointer"
+                >
+                  <option value="date">Date</option>
+                  <option value="salary">Salary</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Job list */}
+            {isLoading ? (
+              <div className="space-y-3">
+                {[1,2,3,4,5].map(i => (
+                  <div key={i} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-5 animate-pulse">
+                    <div className="flex gap-4">
+                      <div className="w-12 h-12 rounded-lg bg-gray-200 dark:bg-gray-700 flex-shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-2/5" />
+                        <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-1/4" />
+                        <div className="h-3 bg-gray-100 dark:bg-gray-800 rounded w-3/4" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredJobs.length > 0 ? (
+              <div className="space-y-3">
+                {filteredJobs.map(job => (
+                  <NaukriJobCard key={job.id} job={job} />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg py-20 text-center">
+                <Search className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+                <h3 className="text-base font-semibold text-gray-700 dark:text-gray-300">No jobs found</h3>
+                <p className="text-sm text-gray-500 mt-1 mb-4">Try adjusting your filters or search terms</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { clearAll(); setSearchInput(""); setActiveSearch(""); }}
+                  className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                >
+                  Clear all filters
+                </Button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
