@@ -1,5 +1,5 @@
 kind = "web"
-previewPath = "/"
+previewPath = "/ai-chat/"
 title = "Recruweb AI Assistant"
 version = "1.0.0"
 id = "artifacts/recruweb-ai"
@@ -11,7 +11,7 @@ version = "1.0.0"
 
 [[services]]
 name = "web"
-paths = [ "/" ]
+paths = [ "/ai-chat/" ]
 localPort = 24930
 
 [services.development]
@@ -28,4 +28,4 @@ to = "/index.html"
 
 [services.env]
 PORT = "24930"
-BASE_PATH = "/"
+BASE_PATH = "/ai-chat/"

@@ -17,428 +17,627 @@ const QUICK_ACTIONS: QuickAction[] = [
   { label: "Interview Prep", icon: "🎤", message: "Help me prepare for a frontend developer interview" },
   { label: "Resume Tips", icon: "📄", message: "How can I improve my resume for ATS systems?" },
   { label: "Salary Guide", icon: "💰", message: "What is the average salary for a software engineer in Noida?" },
-  { label: "Career Switch", icon: "🚀", message: "I want to switch from backend to product management, how?" },
+  { label: "Career Switch", icon: "🚀", message: "I want to switch careers — how do I plan it?" },
   { label: "Platform Help", icon: "💬", message: "How do I apply for jobs on Recruweb?" },
 ];
 
-const WELCOME_MESSAGE: Message = {
+const WELCOME: Message = {
   id: "welcome",
   role: "assistant",
-  content: `Hello! 👋 I'm your **Recruweb AI Career Assistant** — powered by Gemini AI.\n\nI'm here to help you:\n\n• 🔍 **Find the right jobs** based on your skills and experience\n• 🎤 **Ace your interviews** with role-specific preparation\n• 📄 **Optimize your resume** for ATS systems\n• 💬 **Navigate Recruweb** and answer platform questions\n• 💡 **Career guidance** tailored to the Indian job market\n\nHow can I help you today?`,
+  content: `Hello! I'm your **Recruweb AI Career Assistant**, powered by Gemini AI.\n\nI can help you with:\n\n• 🔍 **Job Search** — find roles matching your skills\n• 🎤 **Interview Prep** — practice with real questions\n• 📄 **Resume Optimization** — beat ATS filters\n• 💡 **Career Guidance** — tailored for the Indian job market\n• 💬 **Platform Support** — anything about Recruweb\n\nWhat would you like help with today?`,
   timestamp: new Date(),
 };
 
-function TypingIndicator() {
+/* ── Text-to-Speech helper ── */
+function speak(text: string, enabled: boolean) {
+  if (!enabled || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const clean = text.replace(/[*_`#>~]/g, "").replace(/\n+/g, " ").trim();
+  const utt = new SpeechSynthesisUtterance(clean);
+  utt.lang = "en-IN";
+  utt.rate = 1.05;
+  utt.pitch = 1;
+  // pick a decent voice if available
+  const voices = window.speechSynthesis.getVoices();
+  const preferred = voices.find(
+    (v) => v.lang.startsWith("en") && /Google|Microsoft|Samantha|Alex/i.test(v.name)
+  );
+  if (preferred) utt.voice = preferred;
+  window.speechSynthesis.speak(utt);
+}
+
+/* ── Markdown-lite formatter ── */
+function FormatText({ text, light }: { text: string; light?: boolean }) {
+  const lines = text.split("\n");
+  return (
+    <>
+      {lines.map((line, i) => {
+        const html = line
+          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+          .replace(/\*(.*?)\*/g, "<em>$1</em>")
+          .replace(
+            /`(.*?)`/g,
+            `<code class="px-1 py-0.5 rounded text-[11px] font-mono ${light ? "bg-white/20" : "bg-muted"} ">$1</code>`
+          );
+        return (
+          <span key={i}>
+            {i > 0 && <br />}
+            <span dangerouslySetInnerHTML={{ __html: html }} />
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
+/* ── Typing dots ── */
+function TypingBubble() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 8 }}
-      className="flex items-end gap-3 mb-4"
+      exit={{ opacity: 0 }}
+      className="flex items-end gap-2.5 mb-3"
     >
-      <div className="w-8 h-8 rounded-full ai-badge-bg flex items-center justify-center flex-shrink-0 shadow-md">
-        <span className="text-white text-sm">✦</span>
-      </div>
-      <div className="chat-bubble-ai px-4 py-3 shadow-sm">
-        <div className="flex gap-1.5 items-center h-5">
-          <span className="typing-dot w-2 h-2 rounded-full bg-muted-foreground inline-block"></span>
-          <span className="typing-dot w-2 h-2 rounded-full bg-muted-foreground inline-block"></span>
-          <span className="typing-dot w-2 h-2 rounded-full bg-muted-foreground inline-block"></span>
+      <BotAvatar />
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+        <div className="flex gap-1.5 items-center h-4">
+          {[0, 1, 2].map((i) => (
+            <motion.span
+              key={i}
+              animate={{ y: [0, -5, 0] }}
+              transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.18 }}
+              className="w-1.5 h-1.5 rounded-full bg-indigo-400 inline-block"
+            />
+          ))}
         </div>
       </div>
     </motion.div>
   );
 }
 
-function MessageBubble({ message, index }: { message: Message; index: number }) {
-  const isUser = message.role === "user";
-
-  const formatContent = (text: string) => {
-    const lines = text.split("\n");
-    return lines.map((line, i) => {
-      const formatted = line
-        .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-        .replace(/\*(.*?)\*/g, "<em>$1</em>")
-        .replace(/`(.*?)`/g, "<code class='bg-muted px-1 rounded text-xs font-mono'>$1</code>");
-      return (
-        <span key={i}>
-          {i > 0 && <br />}
-          <span dangerouslySetInnerHTML={{ __html: formatted }} />
-        </span>
-      );
-    });
-  };
-
+/* ── Bot Avatar (animated gem) ── */
+function BotAvatar({ size = "sm" }: { size?: "sm" | "lg" }) {
+  const dim = size === "lg" ? "w-12 h-12" : "w-8 h-8";
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12, scale: 0.97 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.3, ease: "easeOut", delay: index * 0.03 }}
-      className={`flex items-end gap-3 mb-4 ${isUser ? "flex-row-reverse" : ""}`}
+    <div
+      className={`${dim} rounded-full flex-shrink-0 flex items-center justify-center shadow-md relative overflow-hidden`}
+      style={{ background: "linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#a78bfa 100%)" }}
     >
-      {/* Avatar */}
-      {!isUser && (
-        <div className="w-8 h-8 rounded-full ai-badge-bg flex items-center justify-center flex-shrink-0 shadow-md">
-          <span className="text-white text-sm">✦</span>
-        </div>
-      )}
-      {isUser && (
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-500 to-slate-700 flex items-center justify-center flex-shrink-0 shadow-md">
-          <span className="text-white text-xs font-bold">U</span>
-        </div>
-      )}
-
-      {/* Bubble */}
-      <div className={`max-w-[75%] ${isUser ? "chat-bubble-user" : "chat-bubble-ai"} px-4 py-3 shadow-sm`}>
-        <div className={`text-sm leading-relaxed ${isUser ? "text-white" : "text-foreground"}`}>
-          {formatContent(message.content)}
-        </div>
-        <div className={`text-[10px] mt-1.5 ${isUser ? "text-white/60" : "text-muted-foreground"} text-right`}>
-          {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-function AIBadge({ isListening }: { isListening: boolean }) {
-  return (
-    <div className="relative flex items-center justify-center w-10 h-10">
-      {isListening && (
-        <span className="absolute inset-0 rounded-full ai-badge-bg animate-pulse-ring opacity-40" />
-      )}
-      <div className="relative w-10 h-10 rounded-full ai-badge-bg flex items-center justify-center shadow-lg">
-        <span className="text-white text-lg">✦</span>
-      </div>
+      <motion.span
+        animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.1, 1] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        className="text-white select-none"
+        style={{ fontSize: size === "lg" ? 22 : 15 }}
+      >
+        ✦
+      </motion.span>
+      {/* glow ring */}
+      <motion.span
+        animate={{ opacity: [0.3, 0.6, 0.3], scale: [1, 1.3, 1] }}
+        transition={{ duration: 2.5, repeat: Infinity }}
+        className="absolute inset-0 rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(139,92,246,0.4) 0%, transparent 70%)" }}
+      />
     </div>
   );
 }
 
+/* ── Single message bubble ── */
+function MessageBubble({ msg }: { msg: Message }) {
+  const isUser = msg.role === "user";
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.28, ease: "easeOut" }}
+      className={`flex items-end gap-2.5 mb-3 ${isUser ? "flex-row-reverse" : ""}`}
+    >
+      {/* avatar */}
+      {isUser ? (
+        <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center bg-gradient-to-br from-slate-600 to-slate-800 shadow-md text-white text-xs font-bold">
+          U
+        </div>
+      ) : (
+        <BotAvatar />
+      )}
+
+      {/* bubble */}
+      <div
+        className={`max-w-[78%] px-4 py-3 shadow-sm text-sm leading-relaxed ${
+          isUser
+            ? "rounded-2xl rounded-br-sm text-white"
+            : "rounded-2xl rounded-bl-sm bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100"
+        }`}
+        style={
+          isUser
+            ? { background: "linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)" }
+            : {}
+        }
+      >
+        <FormatText text={msg.content} light={isUser} />
+        <div
+          className={`text-[10px] mt-1.5 text-right ${
+            isUser ? "text-indigo-200" : "text-slate-400 dark:text-slate-500"
+          }`}
+        >
+          {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ── Voice waveform bars ── */
+function VoiceWave() {
+  return (
+    <div className="flex gap-0.5 items-center h-5">
+      {[0, 1, 2, 3, 4, 3, 2, 1].map((h, i) => (
+        <motion.span
+          key={i}
+          animate={{ scaleY: [0.3 + h * 0.15, 1, 0.3 + h * 0.15] }}
+          transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.08, ease: "easeInOut" }}
+          className="block w-1 rounded-full bg-red-400"
+          style={{ height: 16 }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════
+   MAIN COMPONENT
+══════════════════════════════════ */
 export default function RecruwebChat() {
-  const [messages, setMessages] = useState<Message[]>([WELCOME_MESSAGE]);
+  const [messages, setMessages] = useState<Message[]>([WELCOME]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [voiceTranscript, setVoiceTranscript] = useState("");
-  const [showQuickActions, setShowQuickActions] = useState(true);
+  const [voiceText, setVoiceText] = useState("");
+  const [ttsOn, setTtsOn] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+  const [showQuick, setShowQuick] = useState(true);
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
+  const ttsRef = useRef(ttsOn);
+  ttsRef.current = ttsOn;
 
+  /* scroll to bottom */
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
+  /* dark mode */
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 
-  const sendMessage = useCallback(async (text: string) => {
-    const trimmed = text.trim();
-    if (!trimmed || isLoading) return;
-
-    setShowQuickActions(false);
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: trimmed,
-      timestamp: new Date(),
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
-    setIsLoading(true);
-
-    try {
-      const history = messages
-        .filter((m) => m.id !== "welcome")
-        .slice(-10)
-        .map((m) => ({ role: m.role, content: m.content }));
-
-      const res = await fetch(`${BASE}/api/ai/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: trimmed, history }),
-      });
-
-      if (!res.ok) throw new Error(`Server error ${res.status}`);
-      const data = await res.json();
-
-      const aiMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: data.response || "Sorry, I couldn't get a response. Please try again.",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiMsg]);
-    } catch (err) {
-      const errMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: "⚠️ I'm having trouble connecting right now. Please check your connection and try again.",
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errMsg]);
-    } finally {
-      setIsLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 100);
+  /* load voices */
+  useEffect(() => {
+    if (window.speechSynthesis?.onvoiceschanged !== undefined) {
+      window.speechSynthesis.onvoiceschanged = () => {};
     }
-  }, [messages, isLoading]);
+    window.speechSynthesis?.getVoices();
+    // speak welcome on first load
+    setTimeout(() => speak(WELCOME.content, true), 800);
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    sendMessage(input);
+  /* ── Send message ── */
+  const sendMessage = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || isLoading) return;
+
+      setShowQuick(false);
+      setInput("");
+      if (inputRef.current) {
+        inputRef.current.style.height = "44px";
+      }
+
+      const userMsg: Message = {
+        id: Date.now().toString(),
+        role: "user",
+        content: trimmed,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      setIsLoading(true);
+
+      try {
+        const history = messages
+          .filter((m) => m.id !== "welcome")
+          .slice(-12)
+          .map((m) => ({ role: m.role, content: m.content }));
+
+        const res = await fetch(`${BASE}/api/ai/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: trimmed, history }),
+        });
+
+        if (!res.ok) throw new Error(`${res.status}`);
+        const data = await res.json();
+        const reply = data.response || "Sorry, I couldn't get a response. Please try again.";
+
+        const aiMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: reply,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+        speak(reply, ttsRef.current);
+      } catch {
+        const errMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content:
+            "⚠️ I'm having trouble connecting right now. The backend server may still be starting up. Please try again in a moment.",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errMsg]);
+      } finally {
+        setIsLoading(false);
+        setTimeout(() => inputRef.current?.focus(), 80);
+      }
+    },
+    [messages, isLoading]
+  );
+
+  /* ── Voice input ── */
+  const toggleVoice = useCallback(() => {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      alert("Voice input is not supported. Please use Chrome or Edge.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const rec = new SR();
+    rec.lang = "en-IN";
+    rec.continuous = false;
+    rec.interimResults = true;
+
+    let finalText = "";
+
+    rec.onstart = () => {
+      setIsListening(true);
+      setVoiceText("");
+      finalText = "";
+      // stop TTS while listening
+      window.speechSynthesis?.cancel();
+    };
+
+    rec.onresult = (e: any) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalText += t;
+        else interim += t;
+      }
+      const current = finalText || interim;
+      setVoiceText(current);
+      // live-type into input as you speak
+      setInput(current);
+      if (inputRef.current) {
+        inputRef.current.value = current;
+        inputRef.current.style.height = "auto";
+        inputRef.current.style.height =
+          Math.min(inputRef.current.scrollHeight, 120) + "px";
+      }
+    };
+
+    rec.onend = () => {
+      setIsListening(false);
+      setVoiceText("");
+      // auto-submit the recognised text
+      setInput((curr) => {
+        const t = curr.trim();
+        if (t) setTimeout(() => sendMessage(t), 120);
+        return curr;
+      });
+    };
+
+    rec.onerror = (e: any) => {
+      setIsListening(false);
+      setVoiceText("");
+      if (e.error !== "no-speech") console.error("STT error:", e.error);
+    };
+
+    recognitionRef.current = rec;
+    rec.start();
+  }, [isListening, sendMessage]);
+
+  /* ── Auto-resize textarea ── */
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    e.target.style.height = "auto";
+    e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage(input);
     }
   };
 
-  const startVoice = () => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      alert("Voice input is not supported in your browser. Please use Chrome.");
-      return;
-    }
-
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "en-IN";
-    recognition.continuous = false;
-    recognition.interimResults = true;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      setVoiceTranscript("");
-    };
-
-    recognition.onresult = (event: any) => {
-      let interim = "";
-      let final = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          final += transcript;
-        } else {
-          interim += transcript;
-        }
-      }
-      const current = final || interim;
-      setVoiceTranscript(current);
-      setInput(current);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-      setVoiceTranscript("");
-      // Auto submit after voice ends if there's content
-      setInput((currentInput) => {
-        const trimmed = currentInput.trim();
-        if (trimmed) {
-          setTimeout(() => sendMessage(trimmed), 200);
-        }
-        return currentInput;
-      });
-    };
-
-    recognition.onerror = (event: any) => {
-      setIsListening(false);
-      setVoiceTranscript("");
-      if (event.error !== "no-speech") {
-        console.error("Speech recognition error:", event.error);
-      }
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-  };
-
   const clearChat = () => {
-    setMessages([WELCOME_MESSAGE]);
-    setShowQuickActions(true);
+    window.speechSynthesis?.cancel();
+    setMessages([WELCOME]);
+    setShowQuick(true);
     setInput("");
   };
 
-  const autoResizeTextarea = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value);
-    const ta = e.target;
-    ta.style.height = "auto";
-    ta.style.height = Math.min(ta.scrollHeight, 120) + "px";
-  };
+  const stopSpeaking = () => window.speechSynthesis?.cancel();
 
+  /* ════════════════════════════ RENDER ════════════════════════════ */
   return (
-    <div className={`flex flex-col h-screen max-h-screen overflow-hidden bg-background`}>
-      {/* Header */}
-      <div className="glass-panel border-b border-border px-4 py-3 flex items-center gap-3 z-10 flex-shrink-0">
-        <AIBadge isListening={isListening} />
+    <div
+      className="flex flex-col h-screen max-h-screen overflow-hidden"
+      style={{
+        background: darkMode
+          ? "linear-gradient(160deg,#0f1123 0%,#1a1f3a 100%)"
+          : "linear-gradient(160deg,#f0f0ff 0%,#f8f7ff 50%,#fff 100%)",
+      }}
+    >
+      {/* ── HEADER ── */}
+      <header
+        className="flex items-center gap-3 px-4 py-3 flex-shrink-0 border-b z-10"
+        style={{
+          background: darkMode ? "rgba(15,17,35,0.85)" : "rgba(255,255,255,0.85)",
+          backdropFilter: "blur(20px)",
+          borderColor: darkMode ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.1)",
+        }}
+      >
+        {/* animated gem badge */}
+        <div className="relative">
+          <BotAvatar size="lg" />
+          {/* online ring */}
+          <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-white dark:border-slate-900 flex items-center justify-center">
+            <motion.span
+              animate={{ scale: [1, 1.5, 1], opacity: [1, 0, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="w-1.5 h-1.5 rounded-full bg-emerald-300 block"
+            />
+          </span>
+        </div>
+
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="font-bold text-base text-foreground leading-tight">Recruweb AI Assistant</h1>
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full ai-badge-bg text-white shadow-sm">
-              GEMINI AI
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="font-bold text-[15px] text-slate-900 dark:text-white leading-tight">
+              Recruweb AI Assistant
+            </h1>
+            <span
+              className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white shadow-sm"
+              style={{ background: "linear-gradient(90deg,#6366f1,#8b5cf6)" }}
+            >
+              GEMINI
             </span>
           </div>
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block"></span>
-            <span className="text-[11px] text-muted-foreground">Online · Ready to help</span>
-          </div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+            Online · Career AI Assistant
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+
+        {/* controls */}
+        <div className="flex items-center gap-1.5">
+          {/* TTS toggle */}
+          <button
+            onClick={() => {
+              setTtsOn((v) => !v);
+              if (ttsOn) window.speechSynthesis?.cancel();
+            }}
+            title={ttsOn ? "Speaker on" : "Speaker off"}
+            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all text-sm ${
+              ttsOn
+                ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300"
+                : "text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+            }`}
+          >
+            {ttsOn ? "🔊" : "🔇"}
+          </button>
+          {/* stop speaking */}
+          <button
+            onClick={stopSpeaking}
+            title="Stop speaking"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-sm"
+          >
+            ⏹
+          </button>
+          {/* dark mode */}
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
-            title="Toggle dark mode"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all text-sm"
           >
             {darkMode ? "☀️" : "🌙"}
           </button>
+          {/* clear */}
           <button
             onClick={clearChat}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-colors"
-            title="Clear chat"
+            title="New chat"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
           >
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M5.5 1C5.22386 1 5 1.22386 5 1.5C5 1.77614 5.22386 2 5.5 2H9.5C9.77614 2 10 1.77614 10 1.5C10 1.22386 9.77614 1 9.5 1H5.5ZM3 3.5C3 3.22386 3.22386 3 3.5 3H11.5C11.7761 3 12 3.22386 12 3.5C12 3.77614 11.7761 4 11.5 4H3.5C3.22386 4 3 3.77614 3 3.5ZM3.5 5C3.22386 5 3 5.22386 3 5.5V12C3 12.5523 3.44772 13 4 13H11C11.5523 13 12 12.5523 12 12V5.5C12 5.22386 11.7761 5 11.5 5H3.5ZM4 6H11V12H4V6Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14H6L5 6" />
+              <path d="M10 11v6M14 11v6" />
+              <path d="M9 6V4h6v2" />
             </svg>
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+      {/* ── MESSAGES ── */}
+      <div className="flex-1 overflow-y-auto px-4 py-4">
         <AnimatePresence>
-          {messages.map((msg, index) => (
-            <MessageBubble key={msg.id} message={msg} index={index} />
+          {messages.map((msg) => (
+            <MessageBubble key={msg.id} msg={msg} />
           ))}
         </AnimatePresence>
 
         {isLoading && (
           <AnimatePresence>
-            <TypingIndicator />
+            <TypingBubble key="typing" />
           </AnimatePresence>
         )}
 
-        {/* Quick Actions */}
+        {/* quick actions */}
         <AnimatePresence>
-          {showQuickActions && messages.length === 1 && (
+          {showQuick && messages.length === 1 && (
             <motion.div
+              key="quick"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ delay: 0.4 }}
-              className="mt-6"
+              exit={{ opacity: 0 }}
+              transition={{ delay: 0.5 }}
+              className="mt-4 mb-2"
             >
-              <p className="text-xs text-muted-foreground text-center mb-3 font-medium uppercase tracking-wide">
+              <p className="text-center text-xs text-slate-400 dark:text-slate-500 mb-3 font-medium tracking-wider uppercase">
                 Quick Start
               </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {QUICK_ACTIONS.map((action) => (
-                  <button
-                    key={action.label}
-                    onClick={() => sendMessage(action.message)}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-primary/5 transition-all text-left group shadow-xs"
+                {QUICK_ACTIONS.map((a) => (
+                  <motion.button
+                    key={a.label}
+                    whileHover={{ scale: 1.02, y: -1 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => sendMessage(a.message)}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl border text-left group transition-all shadow-sm"
+                    style={{
+                      background: darkMode ? "rgba(30,32,60,0.6)" : "rgba(255,255,255,0.8)",
+                      borderColor: darkMode ? "rgba(99,102,241,0.2)" : "rgba(99,102,241,0.15)",
+                    }}
                   >
-                    <span className="text-lg group-hover:scale-110 transition-transform">{action.icon}</span>
-                    <span className="text-xs font-medium text-foreground leading-tight">{action.label}</span>
-                  </button>
+                    <span className="text-lg group-hover:scale-110 transition-transform">{a.icon}</span>
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 leading-tight">
+                      {a.label}
+                    </span>
+                  </motion.button>
                 ))}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        <div ref={messagesEndRef} />
+        <div ref={bottomRef} />
       </div>
 
-      {/* Voice indicator */}
+      {/* ── VOICE BANNER ── */}
       <AnimatePresence>
         {isListening && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="px-4 py-2 flex items-center gap-3 bg-red-50 dark:bg-red-900/20 border-t border-red-200 dark:border-red-800"
+            className="px-4 py-2.5 flex items-center gap-3 border-t"
+            style={{
+              background: darkMode ? "rgba(239,68,68,0.12)" : "rgba(254,226,226,0.8)",
+              borderColor: darkMode ? "rgba(239,68,68,0.25)" : "rgba(239,68,68,0.2)",
+            }}
           >
-            <div className="flex gap-1">
-              {[0, 1, 2, 3].map((i) => (
-                <motion.span
-                  key={i}
-                  animate={{ scaleY: [0.4, 1, 0.4] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
-                  className="block w-1 h-4 bg-red-500 rounded-full"
-                />
-              ))}
-            </div>
-            <span className="text-sm text-red-600 dark:text-red-400 font-medium flex-1 truncate">
-              {voiceTranscript || "Listening... speak now"}
+            <VoiceWave />
+            <span className="text-sm font-medium text-red-600 dark:text-red-400 flex-1 truncate">
+              {voiceText || "Listening… speak now"}
             </span>
-            <span className="text-xs text-red-400">Tap mic to stop</span>
+            <button
+              onClick={toggleVoice}
+              className="text-xs text-red-500 dark:text-red-400 font-semibold px-2 py-1 rounded-lg bg-red-100 dark:bg-red-900/30 hover:bg-red-200 transition-colors"
+            >
+              Stop
+            </button>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Input Area */}
-      <div className="glass-panel border-t border-border px-4 py-3 flex-shrink-0">
-        <form onSubmit={handleSubmit} className="flex items-end gap-2">
-          {/* Voice Button */}
-          <button
+      {/* ── INPUT AREA ── */}
+      <div
+        className="px-4 pt-3 pb-4 flex-shrink-0 border-t"
+        style={{
+          background: darkMode ? "rgba(15,17,35,0.9)" : "rgba(255,255,255,0.9)",
+          backdropFilter: "blur(20px)",
+          borderColor: darkMode ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.1)",
+        }}
+      >
+        <form onSubmit={(e) => { e.preventDefault(); sendMessage(input); }} className="flex items-end gap-2">
+          {/* mic button */}
+          <motion.button
             type="button"
-            onClick={startVoice}
-            className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm ${
+            onClick={toggleVoice}
+            whileTap={{ scale: 0.93 }}
+            className={`w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center transition-all shadow-sm ${
               isListening
-                ? "bg-red-500 text-white animate-mic-pulse"
-                : "bg-muted hover:bg-muted/80 text-muted-foreground hover:text-foreground"
+                ? "bg-red-500 text-white shadow-red-200 dark:shadow-red-900"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600"
             }`}
-            title={isListening ? "Stop listening" : "Voice input"}
+            style={isListening ? { boxShadow: "0 0 0 8px rgba(239,68,68,0.15)" } : {}}
+            title={isListening ? "Stop (auto-submits)" : "Voice input (auto-submits on stop)"}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-              <line x1="12" y1="19" x2="12" y2="23"/>
-              <line x1="8" y1="23" x2="16" y2="23"/>
-            </svg>
-          </button>
+            {isListening ? (
+              <motion.span animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.6, repeat: Infinity }}>
+                🎤
+              </motion.span>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            )}
+          </motion.button>
 
-          {/* Text Input */}
+          {/* textarea */}
           <div className="flex-1 relative">
             <textarea
               ref={inputRef}
               value={input}
-              onChange={autoResizeTextarea}
-              onKeyDown={handleKeyDown}
-              placeholder={isListening ? "🎤 Listening..." : "Ask me anything about jobs, interviews, or your career..."}
+              onChange={handleChange}
+              onKeyDown={handleKey}
+              placeholder={
+                isListening
+                  ? "🎤 Speaking… (will auto-submit)"
+                  : "Ask about jobs, resume, interview prep…"
+              }
               rows={1}
               disabled={isLoading}
-              className="w-full resize-none rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all overflow-hidden leading-relaxed min-h-[40px]"
-              style={{ height: "40px" }}
+              className="w-full resize-none rounded-xl border px-4 py-2.5 text-sm leading-relaxed focus:outline-none transition-all disabled:opacity-50"
+              style={{
+                minHeight: 44,
+                maxHeight: 120,
+                background: darkMode ? "rgba(30,32,60,0.7)" : "rgba(248,247,255,0.9)",
+                borderColor: isListening
+                  ? "#ef4444"
+                  : darkMode
+                  ? "rgba(99,102,241,0.25)"
+                  : "rgba(99,102,241,0.2)",
+                color: darkMode ? "#e2e8f0" : "#1e1b4b",
+                boxShadow: isListening
+                  ? "0 0 0 3px rgba(239,68,68,0.1)"
+                  : "0 0 0 3px rgba(99,102,241,0)",
+              }}
             />
           </div>
 
-          {/* Send Button */}
-          <button
+          {/* send button */}
+          <motion.button
             type="submit"
             disabled={!input.trim() || isLoading}
-            className="flex-shrink-0 w-10 h-10 rounded-xl ai-badge-bg text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-all shadow-sm active:scale-95"
+            whileTap={{ scale: 0.93 }}
+            className="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center text-white shadow-md disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            style={{ background: "linear-gradient(135deg,#6366f1 0%,#8b5cf6 100%)" }}
           >
             {isLoading ? (
               <motion.div
                 animate={{ rotate: 360 }}
-                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full"
+                transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
+                className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white"
               />
             ) : (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -446,11 +645,17 @@ export default function RecruwebChat() {
                 <polygon points="22 2 15 22 11 13 2 9 22 2"/>
               </svg>
             )}
-          </button>
+          </motion.button>
         </form>
 
-        <p className="text-[10px] text-muted-foreground text-center mt-2">
-          Press <kbd className="font-mono bg-muted px-1 rounded text-[10px]">Enter</kbd> to send · <kbd className="font-mono bg-muted px-1 rounded text-[10px]">Shift+Enter</kbd> for new line · Mic auto-submits
+        <p className="text-[10px] text-slate-400 dark:text-slate-600 text-center mt-2 leading-relaxed">
+          <kbd className="font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded text-[10px]">Enter</kbd> send
+          {" · "}
+          <kbd className="font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded text-[10px]">Shift+Enter</kbd> newline
+          {" · "}
+          🎤 Voice auto-types &amp; submits
+          {" · "}
+          {ttsOn ? "🔊 AI reads aloud" : "🔇 Speaker off"}
         </p>
       </div>
     </div>
