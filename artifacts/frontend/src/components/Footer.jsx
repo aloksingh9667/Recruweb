@@ -40,10 +40,10 @@ const footerLinks = {
   ],
   "Company": [
     { label: "About Recruweb", href: "/help" },
-    { label: "Contact Us", href: "/help" },
+    { label: "Contact Us", href: "/contact" },
+    { label: "FAQ", href: "/help" },
     { label: "Privacy Policy", href: "/help" },
     { label: "Terms & Conditions", href: "/help" },
-    { label: "Grievance Redressal", href: "/help" },
     { label: "Sitemap", href: "/" },
   ],
 };

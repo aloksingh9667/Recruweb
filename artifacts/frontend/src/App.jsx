@@ -28,6 +28,7 @@ import SavedJobs from "@/pages/SavedJobs";
 import ApplicationsPage from "@/pages/ApplicationsPage";
 import AllApplicationsPage from "@/pages/AllApplicationsPage";
 import HelpPage from "@/pages/HelpPage";
+import ContactPage from "@/pages/ContactPage";
 import ProfileSettings from "@/pages/ProfileSettings";
 
 const queryClient = new QueryClient();
@@ -51,6 +52,7 @@ function App() {
                     <Route path="/jobs/:jobId" component={JobDetail} />
                     <Route path="/interview-prep" component={InterviewPrep} />
                     <Route path="/help" component={HelpPage} />
+                    <Route path="/contact" component={ContactPage} />
 
                     {/* Saved Jobs (candidate) */}
                     <Route path="/saved-jobs" component={SavedJobs} />

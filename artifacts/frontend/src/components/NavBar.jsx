@@ -331,11 +331,10 @@ export function NavBar() {
               <HelpCircle className="w-3.5 h-3.5" /> Help <ChevronDown className="w-3 h-3" />
             </Button>
           }>
-            <NavItem href="/help" icon={HelpCircle} label="FAQ" desc="Common questions" />
-            <NavItem href="/help#contact-form" icon={Phone} label="Contact Us" />
+            <NavItem href="/help" icon={HelpCircle} label="FAQ" desc="Frequently asked questions" />
+            <NavItem href="/contact" icon={Phone} label="Contact Us" desc="Get in touch with us" />
             <NavItem icon={Mail} label="Email Support" desc="support@recruweb.in"
               onClick={() => window.location = "mailto:support@recruweb.in"} />
-            <NavItem href="/help#contact-form" icon={AlertCircle} label="Report a Problem" />
           </NavDropdown>
         </div>
 
@@ -474,8 +473,7 @@ export function NavBar() {
                 {/* Help Section */}
                 <MobileSection title="Help & Support" icon={HelpCircle}>
                   <MobileLink href="/help" icon={HelpCircle} label="FAQ" onClick={close} />
-                  <MobileLink href="/help#contact-form" icon={Phone} label="Contact Us" onClick={close} />
-                  <MobileLink href="/help#contact-form" icon={AlertCircle} label="Report a Problem" onClick={close} />
+                  <MobileLink href="/contact" icon={Phone} label="Contact Us" onClick={close} />
                 </MobileSection>
 
                 {/* Auth / Settings */}

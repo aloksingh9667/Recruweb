@@ -122,12 +122,12 @@ function useCountUp(target, duration = 2000, startOnMount = true) {
 function StatCard({ icon: Icon, value, suffix, label, color }) {
   const num = useCountUp(value, 1800);
   return (
-    <div className="flex flex-col items-center text-center p-5">
-      <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: `${color}18` }}>
-        <Icon className="w-6 h-6" style={{ color }} />
+    <div className="flex flex-col items-center text-center px-3 py-4 sm:p-5">
+      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center mb-2 sm:mb-3" style={{ background: `${color}18` }}>
+        <Icon className="w-5 h-5 sm:w-6 sm:h-6" style={{ color }} />
       </div>
-      <div className="text-3xl font-extrabold text-gray-900 dark:text-white">{num.toLocaleString()}{suffix}</div>
-      <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">{label}</div>
+      <div className="text-xl sm:text-3xl font-extrabold text-gray-900 dark:text-white">{num.toLocaleString()}{suffix}</div>
+      <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5 sm:mt-1">{label}</div>
     </div>
   );
 }
@@ -234,13 +234,13 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="relative max-w-5xl mx-auto px-4 pt-16 pb-20 text-center">
-          <div className="anim-fadeup inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white/80 text-xs font-medium px-4 py-1.5 rounded-full mb-6">
+        <div className="relative max-w-5xl mx-auto px-4 pt-10 pb-12 sm:pt-16 sm:pb-20 text-center">
+          <div className="anim-fadeup inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white/80 text-xs font-medium px-4 py-1.5 rounded-full mb-5">
             <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
             {totalJobs}+ Live jobs available right now
           </div>
 
-          <h1 className="anim-fadeup-1 text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-4">
+          <h1 className="anim-fadeup-1 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-3 sm:mb-4">
             Find Your{" "}
             <span style={{ background: "linear-gradient(90deg,#a78bfa,#818cf8,#60a5fa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
               Dream Job
@@ -248,61 +248,71 @@ export default function Home() {
             <br />in India
           </h1>
 
-          <p className="anim-fadeup-2 text-white/60 text-base md:text-lg mb-8 max-w-xl mx-auto">
+          <p className="anim-fadeup-2 text-white/60 text-sm sm:text-base md:text-lg mb-6 sm:mb-8 max-w-xl mx-auto px-2">
             Connect with top employers — MNCs, startups, and everything in between. Your next career move starts here.
           </p>
 
-          {/* Search Bar */}
-          <form onSubmit={handleSearch} className="anim-fadeup-3 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl flex flex-col md:flex-row overflow-hidden max-w-3xl mx-auto">
-            <div className="flex-[2] flex items-center gap-2 px-4 py-3.5 border-b md:border-b-0 md:border-r border-gray-100 dark:border-gray-700">
-              <Search className="w-4 h-4 text-gray-400 shrink-0" />
-              <input
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Skills, designation, company…"
-                className="flex-1 bg-transparent text-sm text-gray-800 dark:text-white placeholder:text-gray-400 outline-none"
-              />
-              {searchQuery && <button type="button" onClick={() => setSearchQuery("")} className="text-gray-300 hover:text-gray-500 text-lg leading-none">×</button>}
-            </div>
-            <div className="flex items-center gap-2 px-4 py-3.5 border-b md:border-b-0 md:border-r border-gray-100 dark:border-gray-700 min-w-[160px]">
-              <div className="relative flex-1">
-                <select
-                  value={experience}
-                  onChange={e => setExperience(e.target.value)}
-                  className="w-full bg-transparent text-sm text-gray-700 dark:text-white outline-none appearance-none cursor-pointer pr-5"
-                >
-                  {EXPERIENCE_OPTIONS.map(opt => (
-                    <option key={opt} value={opt} className="bg-white dark:bg-gray-800">{opt}</option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+          {/* Search Bar — mobile: stacked, desktop: row */}
+          <form onSubmit={handleSearch} className="anim-fadeup-3 max-w-3xl mx-auto">
+            {/* Mobile layout: card-style stacked fields */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden">
+              {/* Skills field */}
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100 dark:border-gray-700">
+                <Search className="w-4 h-4 text-indigo-400 shrink-0" />
+                <input
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Skills, designation, company…"
+                  className="flex-1 bg-transparent text-sm text-gray-800 dark:text-white placeholder:text-gray-400 outline-none min-w-0"
+                />
+                {searchQuery && <button type="button" onClick={() => setSearchQuery("")} className="text-gray-300 hover:text-gray-500 text-lg leading-none shrink-0">×</button>}
               </div>
+
+              {/* Experience + Location in a 2-col row on mobile */}
+              <div className="flex border-b border-gray-100 dark:border-gray-700">
+                <div className="flex-1 flex items-center gap-2 px-4 py-3 border-r border-gray-100 dark:border-gray-700 min-w-0">
+                  <div className="relative flex-1 min-w-0">
+                    <select
+                      value={experience}
+                      onChange={e => setExperience(e.target.value)}
+                      className="w-full bg-transparent text-sm text-gray-700 dark:text-white outline-none appearance-none cursor-pointer pr-4 truncate"
+                    >
+                      {EXPERIENCE_OPTIONS.map(opt => (
+                        <option key={opt} value={opt} className="bg-white dark:bg-gray-800">{opt}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                  </div>
+                </div>
+                <div className="flex-1 flex items-center gap-2 px-4 py-3 min-w-0">
+                  <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
+                  <input
+                    value={locationQuery}
+                    onChange={e => setLocationQuery(e.target.value)}
+                    placeholder="Location"
+                    className="flex-1 bg-transparent text-sm text-gray-800 dark:text-white placeholder:text-gray-400 outline-none min-w-0"
+                  />
+                </div>
+              </div>
+
+              {/* Search button — full width on mobile, inline on md */}
+              <button
+                type="submit"
+                className="w-full font-bold text-sm py-3.5 transition-all text-white"
+                style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}
+              >
+                Search Jobs
+              </button>
             </div>
-            <div className="flex-1 flex items-center gap-2 px-4 py-3.5 border-b md:border-b-0 border-gray-100 dark:border-gray-700">
-              <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
-              <input
-                value={locationQuery}
-                onChange={e => setLocationQuery(e.target.value)}
-                placeholder="Enter location"
-                className="flex-1 bg-transparent text-sm text-gray-800 dark:text-white placeholder:text-gray-400 outline-none"
-              />
-            </div>
-            <button
-              type="submit"
-              className="font-semibold text-sm px-8 py-3.5 transition-all whitespace-nowrap text-white"
-              style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}
-            >
-              Search Jobs
-            </button>
           </form>
 
           {/* Quick filters */}
-          <div className="mt-5 flex flex-wrap justify-center gap-2">
+          <div className="mt-4 flex flex-wrap justify-center gap-1.5 sm:gap-2">
             {QUICK_FILTERS.map(f => (
               <button
                 key={f}
                 onClick={() => setLocation(`/jobs?search=${encodeURIComponent(f)}`)}
-                className="text-xs px-3.5 py-1.5 rounded-full border border-white/20 text-white/70 hover:bg-white/15 hover:text-white hover:border-white/40 transition-all"
+                className="text-[11px] sm:text-xs px-3 sm:px-3.5 py-1 sm:py-1.5 rounded-full border border-white/20 text-white/70 hover:bg-white/15 hover:text-white hover:border-white/40 transition-all"
               >
                 {f}
               </button>
@@ -316,7 +326,7 @@ export default function Home() {
       ══════════════════════════════════════════════════ */}
       <section className="bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 shadow-sm">
         <div className="max-w-5xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-gray-100 dark:divide-gray-800">
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-gray-100 dark:divide-gray-800">
             <StatCard icon={Briefcase}  value={totalJobs}  suffix="+"  label="Live Jobs"        color="#6366f1" />
             <StatCard icon={Building2}  value={50000}      suffix="+"  label="Companies"        color="#8b5cf6" />
             <StatCard icon={Users}      value={1000000}    suffix="+"  label="Job Seekers"      color="#3b82f6" />
@@ -328,16 +338,16 @@ export default function Home() {
       {/* ══════════════════════════════════════════════════
           LIVE JOBS FROM DATABASE
       ══════════════════════════════════════════════════ */}
-      <section className="py-16 bg-gray-50 dark:bg-gray-950">
+      <section className="py-10 sm:py-16 bg-gray-50 dark:bg-gray-950">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6 sm:mb-8">
             <div>
-              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white">Latest Job Openings</h2>
-              <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Real opportunities updated live from our database</p>
+              <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-white">Latest Job Openings</h2>
+              <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm mt-1">Real opportunities updated live from our database</p>
             </div>
             <Link href="/jobs">
-              <button className="hidden md:flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all">
-                View all jobs <ArrowRight className="w-4 h-4" />
+              <button className="flex items-center gap-1.5 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 rounded-xl border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-all">
+                View all <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </button>
             </Link>
           </div>
@@ -436,17 +446,17 @@ export default function Home() {
       {/* ══════════════════════════════════════════════════
           POPULAR ROLES
       ══════════════════════════════════════════════════ */}
-      <section className="py-16 bg-gray-50 dark:bg-gray-950">
+      <section className="py-10 sm:py-16 bg-gray-50 dark:bg-gray-950">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="flex flex-col lg:flex-row gap-10 items-start">
-            <div className="lg:w-64 shrink-0">
-              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-3">
-                Discover Jobs by<br />Popular Role
+          <div className="flex flex-col lg:flex-row gap-6 sm:gap-10 items-start">
+            <div className="lg:w-64 shrink-0 w-full">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-white mb-2 sm:mb-3">
+                Discover Jobs by Popular Role
               </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-5 leading-relaxed">
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-4 sm:mb-5 leading-relaxed">
                 Select a role and we'll show you the most relevant open positions right now.
               </p>
-              <div className="w-40 h-40 rounded-3xl flex items-center justify-center"
+              <div className="w-40 h-40 rounded-3xl hidden sm:flex items-center justify-center"
                 style={{ background: "linear-gradient(135deg,#6366f115,#8b5cf615)" }}>
                 <div className="text-7xl">🔍</div>
               </div>
@@ -477,13 +487,13 @@ export default function Home() {
       {/* ══════════════════════════════════════════════════
           FEATURES STRIP
       ══════════════════════════════════════════════════ */}
-      <section className="py-16 bg-white dark:bg-gray-900">
+      <section className="py-10 sm:py-16 bg-white dark:bg-gray-900">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-2">Everything You Need to Land Your Next Job</h2>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">Powered by Gemini AI for smarter career decisions</p>
+          <div className="text-center mb-7 sm:mb-10">
+            <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-white mb-2">Everything You Need to Land Your Next Job</h2>
+            <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">Powered by Gemini AI for smarter career decisions</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
             {[
               {
                 icon: "🤖", title: "AI Career Assistant",
