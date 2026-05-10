@@ -42,6 +42,21 @@ function parseJSON(text, fallback) {
   }
 }
 
+function fallbackReply(msg) {
+  const m = (msg || "").toLowerCase();
+  if (m.includes("resume") || m.includes("cv"))
+    return "A strong resume should highlight your skills, experience, and achievements. Keep it to 1-2 pages, use action verbs, and tailor it to each job description.";
+  if (m.includes("interview"))
+    return "Prepare for interviews by researching the company, practicing common HR and technical questions, and having concrete examples ready using the STAR method.";
+  if (m.includes("salary") || m.includes("ctc") || m.includes("package"))
+    return "Salary negotiation tip: research industry benchmarks on platforms like LinkedIn and AmbitionBox, then confidently quote a range based on your skills and experience.";
+  if (m.includes("fresher") || m.includes("fresh graduate"))
+    return "As a fresher, focus on building projects, internships, and certifications. Apply on Recruweb for entry-level roles and keep your profile complete for better visibility.";
+  if (m.includes("job") || m.includes("work") || m.includes("hiring") || m.includes("vacancy"))
+    return "Browse our Jobs page to find the latest openings. Use filters for location, experience, and salary to narrow your search!";
+  return "Hi! I'm here to help with your career — jobs, resumes, interview prep, and more. What would you like to know?";
+}
+
 // POST /api/ai/chat
 router.post("/chat", async (req, res) => {
   const { message, history = [], systemHint } = req.body;
@@ -54,18 +69,23 @@ router.post("/chat", async (req, res) => {
     { role: "user", parts: [{ text: message }] },
   ];
 
-  const reply = await geminiChat(contents, systemInstruction, 400);
+  let reply;
+  try {
+    reply = await geminiChat(contents, systemInstruction, 400);
+  } catch (err) {
+    logger.warn({ err }, "Gemini chat failed, using fallback reply");
+    reply = fallbackReply(message);
+  }
 
-  let suggestions = [];
+  let suggestions = ["Show me jobs in my field", "How to improve my resume?", "Interview tips for freshers?"];
   try {
     const raw = await gemini(
       `Given this job seeker conversation, suggest exactly 3 short follow-up questions they might ask next. Return ONLY a JSON array of 3 strings (max 7 words each). User asked: "${message.slice(0, 100)}"`,
       100
     );
     const parsed = parseJSON(raw, []);
-    if (Array.isArray(parsed)) suggestions = parsed.slice(0, 3).map(s => String(s).trim());
+    if (Array.isArray(parsed) && parsed.length >= 3) suggestions = parsed.slice(0, 3).map(s => String(s).trim());
   } catch {}
-  if (suggestions.length < 3) suggestions = ["Show me jobs in my field", "How to improve my resume?", "Interview tips for freshers?"];
 
   res.json({ response: reply, suggestions });
 });

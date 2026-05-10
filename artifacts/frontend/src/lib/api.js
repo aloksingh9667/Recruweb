@@ -1,10 +1,12 @@
+const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+
 export async function fetchApi(endpoint, options = {}) {
   const token = localStorage.getItem("recruweb_token");
-  
+
   const headers = {
     ...options.headers,
   };
-  
+
   if (!(options.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
   }
@@ -13,7 +15,7 @@ export async function fetchApi(endpoint, options = {}) {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`/api${endpoint}`, {
+  const response = await fetch(`${API_BASE}/api${endpoint}`, {
     ...options,
     headers,
   });
@@ -33,7 +35,6 @@ export async function fetchApi(endpoint, options = {}) {
     throw new Error(message);
   }
 
-  // No content
   if (response.status === 204) return null;
 
   try {
