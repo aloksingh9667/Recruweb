@@ -31,17 +31,17 @@ export default function JobDetail() {
     enabled: !!user && user.role === "candidate",
   });
 
-  const { data: savedJobs } = useQuery({
+  const { data: savedJobsRaw } = useQuery({
     queryKey: ["savedJobs"],
     queryFn: () => fetchApi("/jobs/saved/my"),
     enabled: !!user && user.role === "candidate",
   });
+  const savedJobsList = Array.isArray(savedJobsRaw) ? savedJobsRaw : (savedJobsRaw?.savedJobs ?? savedJobsRaw?.jobs ?? []);
 
-  const hasApplied = applications?.applications?.some(app =>
-    app.jobId === jobId || app.jobId?._id === jobId || app.jobId?.id === jobId
-  );
+  const hasApplied = (applications?.applications ?? (Array.isArray(applications) ? applications : []))
+    .some(app => app.jobId === jobId || app.jobId?._id === jobId || app.jobId?.id === jobId);
 
-  const isSaved = savedJobs?.some(j => j._id === jobId || j.id === jobId);
+  const isSaved = savedJobsList.some(j => j._id === jobId || j.id === jobId);
 
   const applyMutation = useMutation({
     mutationFn: (data) => fetchApi("/applications", { method: "POST", body: JSON.stringify(data) }),

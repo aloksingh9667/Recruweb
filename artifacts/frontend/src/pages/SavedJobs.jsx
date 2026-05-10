@@ -15,11 +15,12 @@ export default function SavedJobs() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: jobs, isLoading } = useQuery({
+  const { data: savedJobsRaw, isLoading } = useQuery({
     queryKey: ["savedJobs"],
     queryFn: () => fetchApi("/jobs/saved/my"),
     enabled: !!user,
   });
+  const jobs = Array.isArray(savedJobsRaw) ? savedJobsRaw : (savedJobsRaw?.savedJobs ?? savedJobsRaw?.jobs ?? []);
 
   const unsaveMutation = useMutation({
     mutationFn: (jobId) => fetchApi(`/jobs/${jobId}/save`, { method: "DELETE" }),

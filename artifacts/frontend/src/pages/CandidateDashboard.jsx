@@ -14,10 +14,11 @@ const statusColors = {
 };
 
 export default function CandidateDashboard() {
-  const { data: applications, isLoading } = useQuery({
+  const { data: rawApps, isLoading } = useQuery({
     queryKey: ["myApplications"],
     queryFn: () => fetchApi("/applications/my"),
   });
+  const applications = Array.isArray(rawApps) ? rawApps : (rawApps?.applications ?? rawApps?.data ?? []);
 
   if (isLoading) {
     return <div className="p-8 text-center">Loading dashboard...</div>;
