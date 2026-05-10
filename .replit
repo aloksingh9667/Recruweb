@@ -59,3 +59,8 @@ externalPort = 3002
 [[ports]]
 localPort = 24930
 externalPort = 3001
+
+[userenv]
+
+[userenv.shared]
+GEMINI_API_KEY = "AIzaSyCSZDOjTPH-aw3rm8pOojlIkdpNINDadQQ"
