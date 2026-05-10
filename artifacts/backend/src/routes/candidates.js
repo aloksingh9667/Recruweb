@@ -68,4 +68,39 @@ router.post(
   }
 );
 
+// GET /api/candidates/saved-jobs
+router.get("/saved-jobs", protect, requireRole("candidate"), async (req, res) => {
+  const profile = await CandidateProfile.findOne({ userId: req.user._id }).populate("savedJobs");
+  const savedJobs = profile?.savedJobs || [];
+  res.json({ savedJobs });
+});
+
+// POST /api/candidates/saved-jobs/:jobId
+router.post("/saved-jobs/:jobId", protect, requireRole("candidate"), async (req, res) => {
+  const { jobId } = req.params;
+  const profile = await CandidateProfile.findOneAndUpdate(
+    { userId: req.user._id },
+    { $addToSet: { savedJobs: jobId } },
+    { upsert: true, new: true }
+  );
+  res.json({ message: "Job saved", savedJobsCount: profile.savedJobs.length });
+});
+
+// DELETE /api/candidates/saved-jobs/:jobId
+router.delete("/saved-jobs/:jobId", protect, requireRole("candidate"), async (req, res) => {
+  const { jobId } = req.params;
+  const profile = await CandidateProfile.findOneAndUpdate(
+    { userId: req.user._id },
+    { $pull: { savedJobs: jobId } },
+    { new: true }
+  );
+  res.json({ message: "Job removed", savedJobsCount: profile?.savedJobs?.length || 0 });
+});
+
+// GET /api/candidates/saved-jobs/ids — lightweight: just IDs for checking bookmark state
+router.get("/saved-jobs/ids", protect, requireRole("candidate"), async (req, res) => {
+  const profile = await CandidateProfile.findOne({ userId: req.user._id }).select("savedJobs");
+  res.json({ savedJobIds: (profile?.savedJobs || []).map(id => id.toString()) });
+});
+
 export default router;

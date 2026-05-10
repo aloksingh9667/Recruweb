@@ -79,6 +79,7 @@ externalPort = 3001
 [userenv]
 
 [userenv.shared]
-GEMINI_API_KEY = "AIzaSyCSZDOjTPH-aw3rm8pOojlIkdpNINDadQQ"
+GEMINI_API_KEY = "AIzaSyArUJDTSF8da05__0wz05-dQTdX30qK9dw"
 PORT = "21329"
 BASE_PATH = "/"
+JWT_SECRET = "recruweb_jwt_super_secret_2024_xK9mP2vL8qN5wR3t"

@@ -11,6 +11,7 @@ const candidateProfileSchema = new mongoose.Schema({
   experience: { type: String },
   resumeUrl: { type: String },       // Signed URL (generated on demand)
   resumePublicId: { type: String },  // Cloudinary public_id for private asset
+  savedJobs: [{ type: mongoose.Schema.Types.ObjectId, ref: "Job" }],
 }, { timestamps: true });
 
 candidateProfileSchema.methods.toJSON = function () {

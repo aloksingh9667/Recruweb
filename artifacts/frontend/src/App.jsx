@@ -30,6 +30,8 @@ import AllApplicationsPage from "@/pages/AllApplicationsPage";
 import HelpPage from "@/pages/HelpPage";
 import ContactPage from "@/pages/ContactPage";
 import ProfileSettings from "@/pages/ProfileSettings";
+import AdminLogin from "@/pages/AdminLogin";
+import AdminDashboard from "@/pages/AdminDashboard";
 
 const queryClient = new QueryClient();
 
