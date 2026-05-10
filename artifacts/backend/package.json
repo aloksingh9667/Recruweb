@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js",
+    "dev": "PORT=8080 node --watch src/index.js",
     "build": "echo 'No build step for JS server'",
     "start": "node src/index.js",
     "typecheck": "echo 'No typecheck for JS'"
