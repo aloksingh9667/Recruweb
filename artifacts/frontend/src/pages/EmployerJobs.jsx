@@ -12,10 +12,11 @@ export default function EmployerJobs() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: jobs, isLoading } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["employerJobs"],
     queryFn: () => fetchApi("/jobs/employer/my"),
   });
+  const jobs = data?.jobs ?? [];
 
   const deleteMutation = useMutation({
     mutationFn: (id) => fetchApi(`/jobs/${id}`, { method: "DELETE" }),

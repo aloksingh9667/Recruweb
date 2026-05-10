@@ -9,11 +9,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
-  Briefcase, ChevronDown, Sparkles, Brain, Target, User, LayoutDashboard, LogOut,
+  Briefcase, ChevronDown, Brain, Target, User, LayoutDashboard, LogOut,
   FileText, Building2, Bookmark, Search, MapPin, DollarSign, Star, WifiHigh,
-  MessageCircle, Mic, Wand2, TrendingUp, Layers, BarChart3, Download, Plus,
+  Wand2, TrendingUp, Layers, BarChart3, Plus,
   Users, HelpCircle, Phone, Mail, AlertCircle, Settings, Lock, Moon, Sun,
   Bell, Menu, Home, ClipboardList, CheckSquare, Trophy, ChevronRight,
+  Sparkles,
 } from "lucide-react";
 
 function NavDropdown({ trigger, children }) {
@@ -39,6 +40,38 @@ function NavItem({ href, icon: Icon, label, desc, onClick }) {
   return <Link href={href}>{content}</Link>;
 }
 
+function MobileSection({ title, icon: Icon, children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border border-border/50 rounded-xl overflow-hidden mb-2">
+      <button
+        className="flex items-center gap-3 px-3 py-3 w-full hover:bg-muted/50 transition-colors"
+        onClick={() => setOpen(!open)}
+      >
+        <Icon className="w-4 h-4 text-muted-foreground shrink-0" />
+        <span className="text-sm font-semibold flex-1 text-left">{title}</span>
+        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="border-t border-border/50 bg-muted/20 px-2 py-1">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MobileLink({ href, icon: Icon, label, onClick }) {
+  return (
+    <Link href={href} onClick={onClick}>
+      <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/60 cursor-pointer">
+        {Icon && <Icon className="w-4 h-4 text-muted-foreground" />}
+        <span className="text-sm font-medium">{label}</span>
+      </div>
+    </Link>
+  );
+}
+
 export function NavBar() {
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -47,12 +80,7 @@ export function NavBar() {
   const isCandidate = user?.role === "candidate";
   const isEmployer = user?.role === "employer";
 
-  const handleLogout = () => {
-    logout();
-    setLocation("/");
-    setMobileOpen(false);
-  };
-
+  const handleLogout = () => { logout(); setLocation("/"); setMobileOpen(false); };
   const close = () => setMobileOpen(false);
 
   return (
@@ -68,8 +96,6 @@ export function NavBar() {
 
         {/* Desktop Nav */}
         <div className="hidden lg:flex items-center gap-0.5 flex-1 justify-center">
-
-          {/* Home */}
           <Link href="/">
             <Button variant="ghost" size="sm" className="text-sm gap-1">
               <Home className="w-3.5 h-3.5" /> Home
@@ -104,40 +130,22 @@ export function NavBar() {
                 <NavItem href="/candidate/profile" icon={FileText} label="Upload Resume" desc="Update your CV" />
                 <NavItem href="/candidate/resume-builder" icon={Wand2} label="Build Resume" desc="AI-powered resume" />
                 <DropdownMenuLabel className="text-[10px] text-muted-foreground px-2 mt-1">Resume Templates</DropdownMenuLabel>
-                <NavItem href="/candidate/resume-builder?template=modern" icon={FileText} label="Professional" />
+                <NavItem href="/candidate/resume-builder?template=professional" icon={FileText} label="Professional" />
                 <NavItem href="/candidate/resume-builder?template=ats" icon={Target} label="ATS Friendly" />
                 <NavItem href="/candidate/resume-builder?template=creative" icon={Sparkles} label="Creative" />
                 <DropdownMenuSeparator />
                 <NavItem href="/candidate/resume-builder?tab=analyze" icon={BarChart3} label="Resume Analyzer" desc="AI score + suggestions" />
-                <NavItem href="/candidate/profile" icon={User} label="Profile Completeness" desc="Fill in your details" />
+                <NavItem href="/interview-prep" icon={Brain} label="Interview Preparation" desc="Practice questions" />
+                <NavItem href="/candidate/job-match" icon={Target} label="Job Match AI" desc="Find best jobs for you" />
               </>
             ) : (
               <>
                 <NavItem href="/register?role=candidate" icon={FileText} label="Upload Resume" desc="Join as a candidate" />
                 <NavItem href="/register?role=candidate" icon={Wand2} label="Build Resume" desc="Create with AI" />
-                <NavItem href="/interview-prep" icon={Brain} label="Interview Prep" desc="Practice questions" />
+                <NavItem href="/interview-prep" icon={Brain} label="Interview Preparation" desc="Practice questions" />
+                <NavItem href="/candidate/job-match" icon={Target} label="Job Match AI" desc="AI-powered matching" />
               </>
             )}
-          </NavDropdown>
-
-          {/* AI Tools Dropdown */}
-          <NavDropdown trigger={
-            <Button variant="ghost" size="sm" className="text-sm gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-primary" /> AI Tools <ChevronDown className="w-3 h-3" />
-            </Button>
-          }>
-            <NavItem icon={MessageCircle} label="AI Job Assistant" desc="Chat for career help"
-              onClick={() => document.querySelector("[aria-label='Open AI Assistant']")?.click()} />
-            <NavItem href="/interview-prep" icon={Brain} label="Interview Preparation" desc="Role-specific Q&A" />
-            {isCandidate && <>
-              <DropdownMenuSeparator />
-              <NavItem href="/candidate/job-match" icon={Target} label="Job Match AI" desc="Find best jobs for you" />
-              <NavItem href="/candidate/resume-builder?tab=analyze" icon={TrendingUp} label="Resume Improvement" desc="AI score & suggestions" />
-            </>}
-            {isEmployer && <>
-              <DropdownMenuSeparator />
-              <NavItem href="/employer/jobs" icon={Users} label="AI Resume Filter" desc="Rank candidates by fit" />
-            </>}
           </NavDropdown>
 
           {/* Applications — candidates only */}
@@ -190,20 +198,17 @@ export function NavBar() {
 
         {/* Right side controls */}
         <div className="hidden lg:flex items-center gap-1 shrink-0">
-          {/* Dark mode toggle */}
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleTheme} title="Toggle theme">
             {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </Button>
 
           {user ? (
             <>
-              {/* Notifications bell */}
               <Button variant="ghost" size="icon" className="h-8 w-8 relative" onClick={() => setLocation(isCandidate ? "/applications" : "/employer/jobs")}>
                 <Bell className="w-4 h-4" />
                 <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary" />
               </Button>
 
-              {/* Profile dropdown */}
               <NavDropdown trigger={
                 <Button variant="ghost" size="sm" className="gap-2 ml-1">
                   <div className="w-6 h-6 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold">
@@ -256,92 +261,90 @@ export function NavBar() {
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8"><Menu className="w-4 h-4" /></Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-80 p-0 overflow-y-auto">
-              <SheetHeader className="p-4 border-b">
+            <SheetContent side="right" className="w-[300px] sm:w-80 p-0 overflow-y-auto">
+              <SheetHeader className="p-4 border-b bg-primary/5">
                 <SheetTitle className="text-left flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-primary" /> Recruweb
+                  <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
+                    <Briefcase className="w-3.5 h-3.5 text-white" />
+                  </div>
+                  Recruweb
                 </SheetTitle>
               </SheetHeader>
-              <div className="p-4 space-y-1">
+
+              <div className="p-4 space-y-2">
                 {/* User info */}
                 {user && (
-                  <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-xl mb-3">
-                    <div className="w-9 h-9 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold">
+                  <div className="flex items-center gap-3 p-3 bg-primary/5 border border-primary/10 rounded-xl mb-3">
+                    <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm shrink-0">
                       {user.name?.[0]?.toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm truncate">{user.name}</p>
                       <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
                     </div>
+                    <Bell className="w-4 h-4 text-muted-foreground" />
                   </div>
                 )}
 
-                {/* Mobile nav items */}
-                {[
-                  { href: "/", icon: Home, label: "Home" },
-                  { href: "/jobs", icon: Search, label: "Find Jobs" },
-                  { href: "/interview-prep", icon: Brain, label: "Interview Prep" },
-                  { href: "/help", icon: HelpCircle, label: "Help & FAQ" },
-                ].map(item => (
-                  <Link key={item.href} href={item.href} onClick={close}>
-                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/60 cursor-pointer">
-                      <item.icon className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">{item.label}</span>
-                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground ml-auto" />
-                    </div>
-                  </Link>
-                ))}
+                {/* Home + Jobs */}
+                <MobileLink href="/" icon={Home} label="Home" onClick={close} />
+                <MobileLink href="/interview-prep" icon={Brain} label="Interview Preparation" onClick={close} />
 
+                {/* Jobs Section */}
+                <MobileSection title="Find Jobs" icon={Search}>
+                  <MobileLink href="/jobs" icon={Search} label="All Jobs" onClick={close} />
+                  <MobileLink href="/jobs?location=noida" icon={MapPin} label="Jobs by Location" onClick={close} />
+                  <MobileLink href="/jobs?sort=salary" icon={DollarSign} label="Jobs by Salary" onClick={close} />
+                  <MobileLink href="/jobs?type=walk-in" icon={WifiHigh} label="Walk-in Jobs" onClick={close} />
+                  {isCandidate && <MobileLink href="/saved-jobs" icon={Bookmark} label="Saved Jobs" onClick={close} />}
+                </MobileSection>
+
+                {/* Services Section */}
+                <MobileSection title="Services" icon={Layers}>
+                  <MobileLink href="/candidate/resume-builder" icon={Wand2} label="Resume Builder" onClick={close} />
+                  <MobileLink href="/candidate/resume-builder?tab=analyze" icon={BarChart3} label="Resume Analyzer" onClick={close} />
+                  <MobileLink href="/interview-prep" icon={Brain} label="Interview Prep" onClick={close} />
+                  <MobileLink href="/candidate/job-match" icon={Target} label="Job Match AI" onClick={close} />
+                </MobileSection>
+
+                {/* Candidate Section */}
                 {isCandidate && (
-                  <>
-                    <p className="text-xs font-semibold text-muted-foreground px-3 pt-3 pb-1 uppercase tracking-wide">Candidate</p>
-                    {[
-                      { href: "/candidate/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-                      { href: "/applications", icon: ClipboardList, label: "My Applications" },
-                      { href: "/saved-jobs", icon: Bookmark, label: "Saved Jobs" },
-                      { href: "/candidate/profile", icon: User, label: "My Profile" },
-                      { href: "/candidate/resume-builder", icon: FileText, label: "Resume Builder" },
-                      { href: "/candidate/job-match", icon: Target, label: "Job Match AI" },
-                    ].map(item => (
-                      <Link key={item.href} href={item.href} onClick={close}>
-                        <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/60 cursor-pointer">
-                          <item.icon className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">{item.label}</span>
-                        </div>
-                      </Link>
-                    ))}
-                  </>
+                  <MobileSection title="My Account" icon={User} defaultOpen>
+                    <MobileLink href="/candidate/dashboard" icon={LayoutDashboard} label="Dashboard" onClick={close} />
+                    <MobileLink href="/applications" icon={ClipboardList} label="My Applications" onClick={close} />
+                    <MobileLink href="/saved-jobs" icon={Bookmark} label="Saved Jobs" onClick={close} />
+                    <MobileLink href="/candidate/profile" icon={User} label="My Profile" onClick={close} />
+                    <MobileLink href="/candidate/resume-builder" icon={FileText} label="Resume Builder" onClick={close} />
+                    <MobileLink href="/candidate/job-match" icon={Target} label="Job Match AI" onClick={close} />
+                  </MobileSection>
                 )}
 
+                {/* Employer Section */}
                 {isEmployer && (
-                  <>
-                    <p className="text-xs font-semibold text-muted-foreground px-3 pt-3 pb-1 uppercase tracking-wide">Employer</p>
-                    {[
-                      { href: "/employer/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-                      { href: "/employer/jobs/new", icon: Plus, label: "Post a Job" },
-                      { href: "/employer/jobs", icon: Briefcase, label: "Manage Jobs" },
-                      { href: "/employer/profile", icon: Building2, label: "Company Profile" },
-                    ].map(item => (
-                      <Link key={item.href} href={item.href} onClick={close}>
-                        <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/60 cursor-pointer">
-                          <item.icon className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">{item.label}</span>
-                        </div>
-                      </Link>
-                    ))}
-                  </>
+                  <MobileSection title="Employer" icon={Building2} defaultOpen>
+                    <MobileLink href="/employer/dashboard" icon={LayoutDashboard} label="Dashboard" onClick={close} />
+                    <MobileLink href="/employer/jobs/new" icon={Plus} label="Post a Job" onClick={close} />
+                    <MobileLink href="/employer/jobs" icon={Briefcase} label="Manage Jobs" onClick={close} />
+                    <MobileLink href="/employer/profile" icon={Building2} label="Company Profile" onClick={close} />
+                  </MobileSection>
                 )}
 
-                <div className="pt-3 border-t mt-2 space-y-1">
+                {/* Help Section */}
+                <MobileSection title="Help & Support" icon={HelpCircle}>
+                  <MobileLink href="/help" icon={HelpCircle} label="FAQ" onClick={close} />
+                  <MobileLink href="/help#contact-form" icon={Phone} label="Contact Us" onClick={close} />
+                  <MobileLink href="/help#contact-form" icon={AlertCircle} label="Report a Problem" onClick={close} />
+                </MobileSection>
+
+                {/* Auth / Settings */}
+                <div className="pt-2 border-t mt-2 space-y-1">
                   {user ? (
                     <>
-                      <Link href="/settings" onClick={close}>
-                        <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted/60 cursor-pointer">
-                          <Settings className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">Settings</span>
-                        </div>
-                      </Link>
-                      <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-destructive/10 cursor-pointer text-destructive" onClick={handleLogout}>
+                      <MobileLink href="/settings" icon={Settings} label="Settings" onClick={close} />
+                      <div
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-destructive/10 cursor-pointer text-destructive"
+                        onClick={handleLogout}
+                      >
                         <LogOut className="w-4 h-4" />
                         <span className="text-sm font-medium">Sign Out</span>
                       </div>
