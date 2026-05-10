@@ -91,7 +91,13 @@ export default function AdminLogin() {
           </CardContent>
         </Card>
 
-        <p className="text-center text-xs text-white/30 mt-6">
+        <div className="mt-5 p-3 rounded-xl bg-white/5 border border-white/10 text-center">
+          <p className="text-xs text-white/40 mb-1 font-medium">Demo credentials</p>
+          <p className="text-xs text-white/60 font-mono">admin@recruweb.in</p>
+          <p className="text-xs text-white/60 font-mono">Demo@1234</p>
+        </div>
+
+        <p className="text-center text-xs text-white/25 mt-4">
           Recruweb Resources Pvt. Ltd. — Admin Portal
         </p>
       </div>
