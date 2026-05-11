@@ -34,18 +34,20 @@ function SidebarContent({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Logo */}
-      <div className={`border-b border-white/10 flex items-center ${collapsed ? "p-3 justify-center" : "p-5"} transition-all duration-300`}>
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
-          <Shield className="w-5 h-5 text-white" />
-        </div>
-        {!collapsed && (
-          <div className="ml-3 overflow-hidden">
-            <p className="font-bold text-sm text-white leading-none whitespace-nowrap">Recruweb</p>
-            <p className="text-[11px] text-white/50 mt-0.5 font-medium tracking-wide uppercase whitespace-nowrap">Admin Panel</p>
+      {/* Logo — click to go to Dashboard */}
+      <Link href="/dashboard">
+        <div className={`border-b border-white/10 flex items-center cursor-pointer hover:bg-white/5 transition-colors ${collapsed ? "p-3 justify-center" : "p-5"} transition-all duration-300`}>
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 shrink-0">
+            <Shield className="w-5 h-5 text-white" />
           </div>
-        )}
-      </div>
+          {!collapsed && (
+            <div className="ml-3 overflow-hidden">
+              <p className="font-bold text-sm text-white leading-none whitespace-nowrap">Recruweb</p>
+              <p className="text-[11px] text-white/50 mt-0.5 font-medium tracking-wide uppercase whitespace-nowrap">Admin Panel</p>
+            </div>
+          )}
+        </div>
+      </Link>
 
       {/* Nav */}
       <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
@@ -129,10 +131,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* Desktop Sidebar */}
+      {/* Desktop Sidebar — visible from md (768px) and up */}
       <aside
-        className={`hidden lg:flex shrink-0 flex-col bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 transition-all duration-300 ${
-          collapsed ? "w-16" : "w-60"
+        className={`hidden md:flex shrink-0 flex-col bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 transition-all duration-300 ${
+          collapsed ? "w-16" : "w-56"
         }`}
       >
         <SidebarContent collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} showToggle />
@@ -141,14 +143,14 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       {/* Mobile Overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       {/* Mobile Drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-60 flex flex-col bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 transition-transform duration-300 lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-60 flex flex-col bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 transition-transform duration-300 md:hidden ${
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -163,20 +165,22 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        {/* Mobile topbar */}
-        <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200 shrink-0">
+        {/* Mobile topbar — only on very small screens (below md) */}
+        <header className="md:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200 shrink-0">
           <button
             onClick={() => setMobileOpen(true)}
             className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
           >
             <Menu className="w-5 h-5" />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-              <Shield className="w-3.5 h-3.5 text-white" />
+          <Link href="/dashboard">
+            <div className="flex items-center gap-2 cursor-pointer">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                <Shield className="w-3.5 h-3.5 text-white" />
+              </div>
+              <span className="font-bold text-sm text-gray-900">Recruweb Admin</span>
             </div>
-            <span className="font-bold text-sm text-gray-900">Recruweb Admin</span>
-          </div>
+          </Link>
         </header>
 
         <main className="flex-1 overflow-y-auto">
