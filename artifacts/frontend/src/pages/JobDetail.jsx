@@ -362,17 +362,15 @@ export default function JobDetail() {
                   <Link href="/login"><Button className="flex-1 sm:flex-none font-semibold"><Send className="w-4 h-4 mr-2" />Login to Apply</Button></Link>
                 )}
 
-                {isCandidate && (
-                  <Button
-                    variant="outline"
-                    onClick={() => saveMutation.mutate()}
-                    disabled={saveMutation.isPending}
-                    className={`flex-1 sm:flex-none gap-2 ${isSaved ? "border-primary text-primary bg-primary/5" : ""}`}
-                  >
-                    {isSaved ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
-                    {isSaved ? "Saved" : "Save"}
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  onClick={() => saveMutation.mutate()}
+                  disabled={saveMutation.isPending || (!user && false)}
+                  className={`flex-1 sm:flex-none gap-2 ${isSaved ? "border-primary text-primary bg-primary/5" : ""}`}
+                >
+                  {isSaved ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+                  {isSaved ? "Saved" : "Save"}
+                </Button>
               </div>
             </div>
 

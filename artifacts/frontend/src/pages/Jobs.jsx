@@ -192,28 +192,32 @@ function NaukriJobCard({ job, isSaved, onSaveToggle, onApply, hasApplied, isCand
 
               {/* Action buttons */}
               <div className="flex items-center gap-1.5 shrink-0">
-                {isCandidate && (
-                  <button onClick={() => onSaveToggle(jobId, isSaved)} className={`p-1.5 rounded-full transition-all duration-200 ${isSaved ? "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 scale-110" : "text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"}`} title={isSaved ? "Saved" : "Save job"}>
-                    {isSaved ? <BookmarkCheck className="w-4 h-4 sm:w-5 sm:h-5" /> : <Bookmark className="w-4 h-4 sm:w-5 sm:h-5" />}
-                  </button>
-                )}
-                {isCandidate ? (
-                  hasApplied ? (
-                    <span className="text-[10px] sm:text-xs px-2 sm:px-3 h-7 sm:h-8 flex items-center font-semibold text-green-700 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg gap-1">
-                      ✓ Applied
-                    </span>
-                  ) : (
-                    <Button size="sm" onClick={() => onApply(job)} className="h-7 sm:h-8 text-[10px] sm:text-xs px-2.5 sm:px-4 font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow-indigo-200 dark:hover:shadow-indigo-900/30 transition-all">
-                      Apply
-                    </Button>
-                  )
+                {/* Bookmark — visible to all, redirects to login if not logged in */}
+                <button
+                  onClick={() => onSaveToggle(jobId, isSaved)}
+                  className={`p-1.5 rounded-full transition-all duration-200 ${isSaved ? "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 scale-110" : "text-gray-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"}`}
+                  title={isSaved ? "Saved" : "Save job"}
+                >
+                  {isSaved ? <BookmarkCheck className="w-4 h-4 sm:w-5 sm:h-5" /> : <Bookmark className="w-4 h-4 sm:w-5 sm:h-5" />}
+                </button>
+
+                {/* Apply / Applied — visible to all */}
+                {hasApplied ? (
+                  <span className="text-[10px] sm:text-xs px-2 sm:px-3 h-7 sm:h-8 flex items-center font-semibold text-green-700 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg gap-1">
+                    ✓ Applied
+                  </span>
                 ) : (
-                  <Link href={`/jobs/${jobId}`}>
-                    <Button size="sm" variant="outline" className="h-7 sm:h-8 text-[10px] sm:text-xs px-2.5 sm:px-4 font-semibold rounded-lg border-indigo-300 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all">
-                      View
-                    </Button>
-                  </Link>
+                  <Button size="sm" onClick={() => onApply(job)} className="h-7 sm:h-8 text-[10px] sm:text-xs px-2.5 sm:px-4 font-semibold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow-indigo-200 dark:hover:shadow-indigo-900/30 transition-all">
+                    Apply
+                  </Button>
                 )}
+
+                {/* View — always visible */}
+                <Link href={`/jobs/${jobId}`}>
+                  <Button size="sm" variant="outline" className="h-7 sm:h-8 text-[10px] sm:text-xs px-2.5 sm:px-4 font-semibold rounded-lg border-gray-300 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-400 transition-all">
+                    View
+                  </Button>
+                </Link>
               </div>
             </div>
 
@@ -501,7 +505,7 @@ function ResumeTipsPanel({ category }) {
 
 /* ─── MAIN COMPONENT ─── */
 export default function Jobs() {
-  const [woLocation] = useLocation();
+  const [woLocation, setLocation] = useLocation();
   const woSearch = useSearch();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -556,14 +560,16 @@ export default function Jobs() {
   });
 
   const handleSaveToggle = useCallback((jobId, isSaved) => {
-    if (!isCandidate) { toast({ title:"Login required", description:"Please log in as a candidate.", variant:"destructive" }); return; }
+    if (!user) { setLocation("/login"); return; }
+    if (!isCandidate) { toast({ title:"Candidates only", description:"Log in as a candidate to save jobs.", variant:"destructive" }); return; }
     saveMutation.mutate({ jobId, isSaved });
-  }, [isCandidate, saveMutation, toast]);
+  }, [user, isCandidate, saveMutation, toast, setLocation]);
 
   const handleApply = useCallback((job) => {
-    if (!isCandidate) { toast({ title:"Login required", description:"Please log in as a candidate.", variant:"destructive" }); return; }
+    if (!user) { setLocation("/login"); return; }
+    if (!isCandidate) { toast({ title:"Candidates only", description:"Employers cannot apply to jobs.", variant:"destructive" }); return; }
     setApplyDialogJob(job); setCoverLetter("");
-  }, [isCandidate, toast]);
+  }, [user, isCandidate, toast, setLocation]);
 
   const toggle = useCallback((key, value) => {
     setFilters(prev => ({ ...prev, [key]: prev[key].includes(value) ? prev[key].filter(v => v !== value) : [...prev[key], value] }));

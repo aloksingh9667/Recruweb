@@ -29,21 +29,34 @@ const WELCOME: Message = {
 };
 
 /* ── Text-to-Speech helper ── */
-function speak(text: string, enabled: boolean) {
+function loadVoicesAsync(): Promise<SpeechSynthesisVoice[]> {
+  return new Promise((resolve) => {
+    const v = window.speechSynthesis.getVoices();
+    if (v.length > 0) return resolve(v);
+    const onChanged = () => {
+      window.speechSynthesis.removeEventListener("voiceschanged", onChanged);
+      resolve(window.speechSynthesis.getVoices());
+    };
+    window.speechSynthesis.addEventListener("voiceschanged", onChanged);
+    setTimeout(() => resolve(window.speechSynthesis.getVoices()), 2500);
+  });
+}
+
+async function speak(text: string, enabled: boolean) {
   if (!enabled || !window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const clean = text.replace(/[*_`#>~]/g, "").replace(/\n+/g, " ").trim();
   const utt = new SpeechSynthesisUtterance(clean);
   utt.lang = "en-IN";
   utt.rate = 1.05;
-  utt.pitch = 1;
-  // pick a decent voice if available
-  const voices = window.speechSynthesis.getVoices();
+  utt.pitch = 1.3;
+  const voices = await loadVoicesAsync();
+  const MALE = /\b(david|mark|james|daniel|jorge|ravi|google us english)\b/i;
+  const FEMALE = /female|woman|zira|hazel|susan|samantha|moira|tessa|fiona|victoria|karen|heera|google uk english female/i;
   const preferred =
-    voices.find((v) => v.lang.startsWith("en") && /female|woman|zira|hazel|susan|samantha|google uk english female/i.test(v.name)) ||
-    voices.find((v) => v.lang.startsWith("en-IN") && v.name.toLowerCase().includes("female")) ||
-    voices.find((v) => /zira|hazel|susan|samantha/i.test(v.name)) ||
-    voices.find((v) => v.lang.startsWith("en-IN")) ||
+    voices.find((v) => v.lang.startsWith("en") && FEMALE.test(v.name)) ||
+    voices.find((v) => v.lang.startsWith("en-IN") && !MALE.test(v.name)) ||
+    voices.find((v) => v.lang.startsWith("en") && !MALE.test(v.name)) ||
     voices.find((v) => v.lang.startsWith("en"));
   if (preferred) utt.voice = preferred;
   window.speechSynthesis.speak(utt);

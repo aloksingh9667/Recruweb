@@ -100,20 +100,34 @@ export function AIChatbot() {
     recRef.current = rec;
   }, []);
 
-  const speakText = useCallback((text) => {
+  const speakText = useCallback(async (text) => {
     if (!voiceEnabled || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const clean = text.replace(/[*•#🔍🎯📄💬👋✨]/g, "").replace(/\n/g, " ").trim();
     const utt = new SpeechSynthesisUtterance(clean.slice(0, 300));
-    utt.lang = "en-IN"; utt.rate = 1.05;
-    const voices = window.speechSynthesis.getVoices() || [];
+    utt.lang = "en-IN"; utt.rate = 1.05; utt.pitch = 1.3;
+
+    // Load voices async — Chrome returns empty array before voiceschanged fires
+    const voices = await new Promise(resolve => {
+      const v = window.speechSynthesis.getVoices();
+      if (v.length > 0) return resolve(v);
+      const onChanged = () => {
+        window.speechSynthesis.removeEventListener("voiceschanged", onChanged);
+        resolve(window.speechSynthesis.getVoices());
+      };
+      window.speechSynthesis.addEventListener("voiceschanged", onChanged);
+      setTimeout(() => resolve(window.speechSynthesis.getVoices()), 2500);
+    });
+
+    // Female-first selection; explicitly exclude known male names
+    const MALE = /\b(david|mark|james|daniel|jorge|ravi|google us english)\b/i;
+    const FEMALE = /female|woman|zira|hazel|susan|samantha|moira|tessa|fiona|victoria|karen|heera|google uk english female/i;
     const v =
-      voices.find(v => v.lang.startsWith("en") && /female|woman|zira|hazel|susan|samantha|google uk english female/i.test(v.name)) ||
-      voices.find(v => v.lang.startsWith("en-IN") && v.name.toLowerCase().includes("female")) ||
-      voices.find(v => /zira|hazel|susan|samantha/i.test(v.name)) ||
-      voices.find(v => v.lang.startsWith("en-IN")) ||
-      voices.find(v => v.lang.startsWith("en")) ||
-      null;
+      voices.find(v => v.lang.startsWith("en") && FEMALE.test(v.name)) ||
+      voices.find(v => v.lang.startsWith("en-IN") && !MALE.test(v.name)) ||
+      voices.find(v => v.lang.startsWith("en") && !MALE.test(v.name)) ||
+      voices.find(v => v.lang.startsWith("en")) || null;
+
     if (v) utt.voice = v;
     utt.onstart = () => setSpeaking(true);
     utt.onend   = () => setSpeaking(false);
