@@ -12,6 +12,7 @@ import {
   Search, MapPin, Briefcase, IndianRupee, Clock, Bookmark,
   BookmarkCheck, SlidersHorizontal, X, ChevronDown, ChevronUp,
   Star, Building2, Users, Send, Zap, TrendingUp, Filter,
+  Sparkles, CheckCircle2, XCircle, Tag, Lightbulb, ChevronRight,
 } from "lucide-react";
 import { formatDistanceToNow, subDays, subHours } from "date-fns";
 
@@ -315,6 +316,189 @@ function FilterPanel({ filters, setFilters, locationSearch, setLocationSearch, t
   );
 }
 
+/* ─── Resume Tips Panel ─── */
+function ResumeTipsPanel({ category }) {
+  const [open, setOpen] = useState(true);
+  const [dismissed, setDismissed] = useState(false);
+  const prevCategoryRef = useRef(null);
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["resumeTips", category],
+    queryFn: () => fetchApi("/ai/resume-tips-by-role", { method: "POST", body: JSON.stringify({ category }) }),
+    enabled: !!category && !dismissed,
+    staleTime: 10 * 60 * 1000,
+    retry: 1,
+  });
+
+  useEffect(() => {
+    if (prevCategoryRef.current && prevCategoryRef.current !== category) {
+      setDismissed(false);
+      setOpen(true);
+    }
+    prevCategoryRef.current = category;
+  }, [category]);
+
+  if (dismissed || !category) return null;
+
+  const TipSkeleton = () => (
+    <div className="animate-pulse space-y-3">
+      <div className="h-4 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg w-2/3" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+        {[1,2,3].map(i => (
+          <div key={i} className="h-16 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl" />
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="mb-4 rounded-2xl border border-indigo-200 dark:border-indigo-800/60 overflow-hidden shadow-sm"
+      style={{ background: "linear-gradient(135deg,#eef2ff 0%,#f5f3ff 100%)" }}
+    >
+      <style>{`
+        .dark .tips-panel { background: linear-gradient(135deg,rgba(49,46,129,0.25) 0%,rgba(76,29,149,0.18) 100%) !important; border-color: rgba(99,102,241,0.3) !important; }
+        @keyframes tipsIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+        .tips-anim { animation: tipsIn .3s ease both; }
+      `}</style>
+
+      {/* Header */}
+      <div
+        className="flex items-center gap-2.5 px-4 py-3 cursor-pointer select-none"
+        style={{ background: "linear-gradient(135deg,rgba(99,102,241,0.08),rgba(139,92,246,0.06))" }}
+        onClick={() => setOpen(o => !o)}
+      >
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
+          style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
+          <Sparkles className="w-3.5 h-3.5 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-bold text-indigo-800 dark:text-indigo-300">
+            AI Resume Tips
+          </span>
+          <span className="ml-2 text-xs text-indigo-500 dark:text-indigo-400 font-medium">
+            for {category} jobs
+          </span>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
+            style={{ background: "linear-gradient(90deg,#6366f1,#8b5cf6)" }}>
+            GEMINI
+          </span>
+          <button
+            onClick={e => { e.stopPropagation(); setDismissed(true); }}
+            className="ml-1 p-1 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-400 hover:text-indigo-600 transition-colors"
+            title="Dismiss"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+          <ChevronDown className={`w-4 h-4 text-indigo-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+        </div>
+      </div>
+
+      {/* Body */}
+      {open && (
+        <div className="px-4 pb-4 pt-2 tips-anim dark:tips-panel">
+          {isLoading ? (
+            <TipSkeleton />
+          ) : data ? (
+            <div className="space-y-3">
+              {/* Headline */}
+              {data.headline && (
+                <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                  <Lightbulb className="w-4 h-4 shrink-0" />{data.headline}
+                </p>
+              )}
+
+              {/* Tips grid */}
+              {data.tips?.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {data.tips.map((tip, i) => (
+                    <div key={i} className="bg-white/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800/40 rounded-xl p-3 flex gap-2.5">
+                      <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5"
+                        style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)", minWidth: 20 }}>
+                        <span className="text-white text-[10px] font-black">{i + 1}</span>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-snug">{tip.title}</p>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">{tip.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Keywords + Do/Don't */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-1">
+                {/* ATS Keywords */}
+                {data.keywords?.length > 0 && (
+                  <div className="bg-white/60 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-800/40 rounded-xl p-3">
+                    <p className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 mb-2 flex items-center gap-1">
+                      <Tag className="w-3 h-3" /> ATS Keywords to Include
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {data.keywords.map((kw, i) => (
+                        <span key={i} className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-700">
+                          {kw}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Do list */}
+                {data.doList?.length > 0 && (
+                  <div className="bg-white/60 dark:bg-indigo-950/30 border border-emerald-100 dark:border-emerald-900/40 rounded-xl p-3">
+                    <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 mb-2 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Do This
+                    </p>
+                    <ul className="space-y-1">
+                      {data.doList.map((item, i) => (
+                        <li key={i} className="text-[11px] text-gray-600 dark:text-gray-400 flex gap-1.5">
+                          <span className="text-emerald-500 shrink-0 mt-0.5">✓</span>{item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Don't list */}
+                {data.dontList?.length > 0 && (
+                  <div className="bg-white/60 dark:bg-indigo-950/30 border border-red-100 dark:border-red-900/40 rounded-xl p-3">
+                    <p className="text-[11px] font-bold text-red-500 dark:text-red-400 mb-2 flex items-center gap-1">
+                      <XCircle className="w-3 h-3" /> Avoid These
+                    </p>
+                    <ul className="space-y-1">
+                      {data.dontList.map((item, i) => (
+                        <li key={i} className="text-[11px] text-gray-600 dark:text-gray-400 flex gap-1.5">
+                          <span className="text-red-400 shrink-0 mt-0.5">✗</span>{item}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {/* CTA */}
+              <div className="flex items-center justify-between pt-1">
+                <p className="text-[10px] text-indigo-400">
+                  Powered by Gemini AI · Tips tailored for {category} roles in India
+                </p>
+                <a href="/candidate/resume-builder" className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1">
+                  Build my resume <ChevronRight className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => refetch()} className="text-xs text-indigo-600 hover:underline">
+              Tap to load tips for {category}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── MAIN COMPONENT ─── */
 export default function Jobs() {
   const [woLocation] = useLocation();
@@ -550,6 +734,11 @@ export default function Jobs() {
                   </span>
                 ))}
               </div>
+            )}
+
+            {/* Resume Tips Panel — shown when a category is selected */}
+            {filters.categories.length > 0 && (
+              <ResumeTipsPanel category={filters.categories[0]} />
             )}
 
             {/* Job list */}

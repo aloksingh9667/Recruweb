@@ -231,4 +231,79 @@ Rules:
   res.json(parseJSON(raw, fallback));
 });
 
+// POST /api/ai/resume-tips-by-role
+router.post("/resume-tips-by-role", async (req, res) => {
+  const { category } = req.body;
+  if (!category) return res.status(400).json({ message: "Category required" });
+
+  const prompt = `You are an expert Indian recruitment consultant. Give highly specific, actionable resume tips for a candidate applying to "${category}" jobs in India.
+
+Return ONLY valid JSON — no markdown, no explanation:
+{
+  "headline": "<short motivating headline for this category, e.g. 'Stand Out in IT/Software Roles'>",
+  "tips": [
+    { "title": "<short tip title>", "desc": "<1-2 sentence actionable advice specific to ${category} roles in India>" },
+    { "title": "<short tip title>", "desc": "<1-2 sentence actionable advice>" },
+    { "title": "<short tip title>", "desc": "<1-2 sentence actionable advice>" },
+    { "title": "<short tip title>", "desc": "<1-2 sentence actionable advice>" },
+    { "title": "<short tip title>", "desc": "<1-2 sentence actionable advice>" }
+  ],
+  "keywords": ["<top ATS keyword for ${category}>", "<keyword>", "<keyword>", "<keyword>", "<keyword>", "<keyword>"],
+  "doList": ["<one specific DO for ${category} resume>", "<DO>", "<DO>"],
+  "dontList": ["<one specific DON'T for ${category} resume>", "<DON'T>", "<DON'T>"]
+}
+
+Rules:
+- Tips must be specific to "${category}" industry — not generic
+- Keywords must be real ATS terms recruiters search for in this category
+- Indian job market context (mention Indian companies/platforms where relevant)
+- Keep each tip desc under 30 words`;
+
+  const fallbacks = {
+    "IT/Software": {
+      headline: "Get Shortlisted for Top IT/Software Roles",
+      tips: [
+        { title: "Lead with a Tech Stack summary", desc: "Put your core languages and frameworks (React, Node.js, Python, AWS) prominently at the top — recruiters scan for these first." },
+        { title: "Quantify project impact", desc: "Replace vague phrases with metrics: 'Reduced API latency by 40%' beats 'Improved performance'." },
+        { title: "List GitHub / portfolio link", desc: "Add a GitHub profile or live project URL — MNCs and startups both verify it before calling." },
+        { title: "Match the JD keywords exactly", desc: "Copy exact skill names from the job description (e.g. 'REST APIs', not just 'APIs') to pass ATS filters." },
+        { title: "Separate 'Projects' from 'Experience'", desc: "For freshers or career switchers, a dedicated Projects section with tech used and outcome beats a thin experience section." },
+      ],
+      keywords: ["REST API", "Agile", "CI/CD", "Microservices", "Cloud (AWS/GCP/Azure)", "Git"],
+      doList: ["List certifications (AWS, Google Cloud, Cisco)", "Mention SDLC methodologies you've used", "Include open-source contributions"],
+      dontList: ["List outdated technologies like VB6 or Flash", "Use one resume for all roles — tailor per JD", "Skip version numbers (write 'React 18', not just 'React')"],
+    },
+    "Sales": {
+      headline: "Craft a Sales Resume That Closes Interviews",
+      tips: [
+        { title: "Lead with revenue numbers", desc: "State your targets and achievement: '₹1.2 Cr quarterly target, achieved 118%' — hiring managers look for this immediately." },
+        { title: "Name the industries you've sold into", desc: "B2B SaaS, FMCG, pharma, real estate — specify your sector experience so recruiters know your domain fit." },
+        { title: "Include CRM tools you've used", desc: "Mention Salesforce, Zoho CRM, or HubSpot by name — companies filter for tool experience." },
+        { title: "Show promotions or incentive awards", desc: "List 'Top Performer Q3 FY24' or 'President's Club' — these validate your track record without needing references." },
+        { title: "Keep it to one page if under 5 years", desc: "Sales resumes should be punchy; a long resume suggests poor communication skills — which is ironic for a sales role." },
+      ],
+      keywords: ["Revenue growth", "Lead generation", "Pipeline management", "B2B/B2C", "CRM", "Quota attainment"],
+      doList: ["Quantify every role with numbers", "Mention territory or region managed", "List key accounts won"],
+      dontList: ["Use passive language like 'responsible for sales'", "Skip incentive/bonus achievements", "Omit channel (inside sales vs field sales)"],
+    },
+  };
+
+  const raw = await gemini(prompt, 1000);
+  const fallback = fallbacks[category] || {
+    headline: `Resume Tips for ${category} Roles`,
+    tips: [
+      { title: "Tailor your resume per JD", desc: "Copy exact keywords from the job description to pass ATS filters used by top Indian employers." },
+      { title: "Lead with a strong summary", desc: "Write 2-3 lines that match your profile to the role — recruiters spend 6 seconds on first scan." },
+      { title: "Quantify your achievements", desc: "Replace 'managed a team' with 'managed a team of 8, delivered project 2 weeks ahead of schedule'." },
+      { title: "Keep formatting clean and ATS-safe", desc: "Avoid tables, columns, and images — many Indian company ATS systems can't parse them correctly." },
+      { title: "Add a LinkedIn and relevant certifications", desc: "Include your LinkedIn URL and any industry certifications to boost credibility with HR teams." },
+    ],
+    keywords: ["Results-driven", "Cross-functional", "Stakeholder management", "Process improvement", "Team leadership", "KPI"],
+    doList: ["One-page resume if under 5 years experience", "Use bullet points, not paragraphs", "Include location and notice period"],
+    dontList: ["Use a photo or date of birth (not required in India for most roles)", "Use jargon without context", "Ignore spelling and grammar"],
+  };
+
+  res.json({ category, ...parseJSON(raw, fallback) });
+});
+
 export default router;
