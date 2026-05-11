@@ -18,7 +18,7 @@ function getAI() {
 async function gemini(prompt, maxTokens = 512) {
   const ai = getAI();
   const response = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
+    model: "gemini-2.0-flash-lite",
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     config: { maxOutputTokens: maxTokens },
   });
@@ -28,7 +28,7 @@ async function gemini(prompt, maxTokens = 512) {
 async function geminiChat(contents, systemInstruction, maxTokens = 512) {
   const ai = getAI();
   const response = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
+    model: "gemini-2.0-flash-lite",
     contents,
     config: { systemInstruction, maxOutputTokens: maxTokens },
   });
