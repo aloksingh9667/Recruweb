@@ -446,40 +446,109 @@ export default function Home() {
       {/* ══════════════════════════════════════════════════
           POPULAR ROLES
       ══════════════════════════════════════════════════ */}
-      <section className="py-10 sm:py-16 bg-gray-50 dark:bg-gray-950">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex flex-col lg:flex-row gap-6 sm:gap-10 items-start">
-            <div className="lg:w-64 shrink-0 w-full">
-              <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-white mb-2 sm:mb-3">
-                Discover Jobs by Popular Role
-              </h2>
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mb-4 sm:mb-5 leading-relaxed">
-                Select a role and we'll show you the most relevant open positions right now.
-              </p>
-              <div className="w-40 h-40 rounded-3xl hidden sm:flex items-center justify-center"
-                style={{ background: "linear-gradient(135deg,#6366f115,#8b5cf615)" }}>
-                <div className="text-7xl">🔍</div>
-              </div>
+      <section className="py-14 sm:py-20 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f0c29 0%,#1a1040 50%,#0f0c29 100%)" }}>
+        {/* Background decoration */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full opacity-20" style={{ background: "radial-gradient(circle,#6366f1,transparent)" }} />
+          <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full opacity-20" style={{ background: "radial-gradient(circle,#a855f7,transparent)" }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-5" style={{ background: "radial-gradient(circle,#818cf8,transparent)" }} />
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
+          {/* Header */}
+          <div className="text-center mb-10 sm:mb-14">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-4 text-xs font-semibold tracking-widest uppercase"
+              style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", color: "#a5b4fc" }}>
+              🔍 Trending Roles
             </div>
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {POPULAR_ROLES.map(({ title, count, icon: Icon, color }) => (
-                <Link key={title} href={`/jobs?search=${encodeURIComponent(title)}`}>
-                  <div className="card-hover flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl cursor-pointer group">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ background: `${color}15` }}>
-                        <Icon className="w-5 h-5" style={{ color }} />
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-white mb-3 leading-tight">
+              Discover Jobs by{" "}
+              <span style={{ background: "linear-gradient(90deg,#818cf8,#c084fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                Popular Role
+              </span>
+            </h2>
+            <p className="text-sm sm:text-base text-gray-400 max-w-xl mx-auto leading-relaxed">
+              Select a role and we'll show you the most relevant open positions right now.
+            </p>
+          </div>
+
+          {/* Role Cards Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            {POPULAR_ROLES.map(({ title, count, icon: Icon, color }, idx) => (
+              <Link key={title} href={`/jobs?search=${encodeURIComponent(title)}`}>
+                <div
+                  className="group relative overflow-hidden rounded-2xl cursor-pointer h-full"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    backdropFilter: "blur(12px)",
+                    transition: "all 0.3s cubic-bezier(0.34,1.56,0.64,1)",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.transform = "translateY(-6px) scale(1.02)";
+                    e.currentTarget.style.border = `1px solid ${color}55`;
+                    e.currentTarget.style.boxShadow = `0 20px 40px ${color}25, 0 0 0 1px ${color}30`;
+                    e.currentTarget.style.background = `linear-gradient(135deg,${color}18,${color}08)`;
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.transform = "translateY(0) scale(1)";
+                    e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)";
+                    e.currentTarget.style.boxShadow = "none";
+                    e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                  }}
+                >
+                  {/* Glow orb */}
+                  <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                    style={{ background: `radial-gradient(circle,${color}40,transparent)` }} />
+
+                  <div className="p-5 sm:p-6 flex flex-col gap-4">
+                    {/* Icon + rank */}
+                    <div className="flex items-start justify-between">
+                      <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
+                        style={{ background: `${color}22`, border: `1.5px solid ${color}40` }}>
+                        <Icon className="w-6 h-6" style={{ color }} />
                       </div>
-                      <span className="text-sm font-semibold text-gray-800 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{title}</span>
+                      <span className="text-[10px] font-bold tracking-widest uppercase opacity-40 text-white mt-1">
+                        #{idx + 1}
+                      </span>
                     </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-sm font-bold" style={{ color }}>{count}</div>
-                      <div className="text-[10px] text-gray-400">jobs</div>
+
+                    {/* Title */}
+                    <div>
+                      <h3 className="text-sm sm:text-base font-bold text-white leading-snug group-hover:text-opacity-100 transition-colors mb-1"
+                        style={{ color: "rgba(255,255,255,0.92)" }}>
+                        {title}
+                      </h3>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-xl sm:text-2xl font-extrabold" style={{ color }}>{count}</span>
+                        <span className="text-xs text-gray-500 font-medium">open jobs</span>
+                      </div>
+                    </div>
+
+                    {/* CTA bar */}
+                    <div className="flex items-center gap-2 pt-1 border-t border-white/5">
+                      <span className="text-[11px] font-semibold" style={{ color: `${color}cc` }}>Explore roles</span>
+                      <svg className="w-3.5 h-3.5 transform group-hover:translate-x-1 transition-transform duration-200" style={{ color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                      </svg>
                     </div>
                   </div>
-                </Link>
-              ))}
-            </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+
+          {/* Bottom CTA */}
+          <div className="text-center mt-10 sm:mt-12">
+            <Link href="/jobs">
+              <button className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold text-white transition-all duration-200 hover:scale-105"
+                style={{ background: "linear-gradient(135deg,#4f46e5,#7c3aed)", boxShadow: "0 8px 24px rgba(99,102,241,0.35)" }}>
+                Browse All Job Roles
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </button>
+            </Link>
           </div>
         </div>
       </section>
