@@ -39,9 +39,12 @@ function speak(text: string, enabled: boolean) {
   utt.pitch = 1;
   // pick a decent voice if available
   const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find(
-    (v) => v.lang.startsWith("en") && /Google|Microsoft|Samantha|Alex/i.test(v.name)
-  );
+  const preferred =
+    voices.find((v) => v.lang.startsWith("en") && /female|woman|zira|hazel|susan|samantha|google uk english female/i.test(v.name)) ||
+    voices.find((v) => v.lang.startsWith("en-IN") && v.name.toLowerCase().includes("female")) ||
+    voices.find((v) => /zira|hazel|susan|samantha/i.test(v.name)) ||
+    voices.find((v) => v.lang.startsWith("en-IN")) ||
+    voices.find((v) => v.lang.startsWith("en"));
   if (preferred) utt.voice = preferred;
   window.speechSynthesis.speak(utt);
 }
@@ -220,8 +223,6 @@ export default function RecruwebChat() {
       window.speechSynthesis.onvoiceschanged = () => {};
     }
     window.speechSynthesis?.getVoices();
-    // speak welcome on first load
-    setTimeout(() => speak(WELCOME.content, true), 800);
   }, []);
 
   /* ── Send message ── */

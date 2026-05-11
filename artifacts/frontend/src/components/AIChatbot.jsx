@@ -107,7 +107,13 @@ export function AIChatbot() {
     const utt = new SpeechSynthesisUtterance(clean.slice(0, 300));
     utt.lang = "en-IN"; utt.rate = 1.05;
     const voices = window.speechSynthesis.getVoices() || [];
-    const v = voices.find(v => v.name.includes("Google") || v.lang.startsWith("en")) || null;
+    const v =
+      voices.find(v => v.lang.startsWith("en") && /female|woman|zira|hazel|susan|samantha|google uk english female/i.test(v.name)) ||
+      voices.find(v => v.lang.startsWith("en-IN") && v.name.toLowerCase().includes("female")) ||
+      voices.find(v => /zira|hazel|susan|samantha/i.test(v.name)) ||
+      voices.find(v => v.lang.startsWith("en-IN")) ||
+      voices.find(v => v.lang.startsWith("en")) ||
+      null;
     if (v) utt.voice = v;
     utt.onstart = () => setSpeaking(true);
     utt.onend   = () => setSpeaking(false);
