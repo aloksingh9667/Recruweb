@@ -111,6 +111,52 @@ Resume: ${resumeText.slice(0, 3000)}`, 800);
   res.json(parseJSON(raw, fallback));
 });
 
+// POST /api/ai/resume-improve
+router.post("/resume-improve", async (req, res) => {
+  const { fullName, jobTitle, summary, experience = [], skills } = req.body;
+
+  const expText = experience
+    .filter(e => e.company || e.position)
+    .map((e, i) => `Job ${i + 1}: ${e.position || "Role"} at ${e.company || "Company"} (${e.duration || ""})\nDescription: ${e.description || "(none)"}`)
+    .join("\n\n");
+
+  const prompt = `You are an expert resume writer. Rewrite the following resume content to be more impactful, professional, and ATS-optimized. Use strong action verbs, quantify achievements where possible, and keep it concise.
+
+Name: ${fullName || "Candidate"}
+Target Role: ${jobTitle || "Professional"}
+Current Summary: ${summary || "(none)"}
+Skills: ${skills || "(none)"}
+
+Work Experience:
+${expText || "(none provided)"}
+
+Return ONLY valid JSON in this exact shape — no markdown, no explanation:
+{
+  "summary": "<improved 2-3 sentence professional summary>",
+  "jobTitle": "<improved or same job title/headline>",
+  "experience": [
+    { "description": "<improved bullet-point style description for Job 1>" },
+    { "description": "<improved description for Job 2>" }
+  ]
+}
+
+Rules:
+- Keep experience array in the same order as input
+- If no experience provided, return empty array for experience
+- Summary must be punchy and tailored to the target role
+- Use present tense for current role, past tense for others`;
+
+  const raw = await gemini(prompt, 1000);
+
+  const fallback = {
+    summary: summary || "Experienced professional with strong technical skills and a track record of delivering results.",
+    jobTitle: jobTitle || "",
+    experience: experience.map(e => ({ description: e.description || "" })),
+  };
+
+  res.json(parseJSON(raw, fallback));
+});
+
 // POST /api/ai/job-match
 router.post("/job-match", protect, requireRole("candidate"), async (req, res) => {
   const { jobDescription, skills = [], experience = "" } = req.body;

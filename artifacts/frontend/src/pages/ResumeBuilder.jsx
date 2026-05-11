@@ -669,6 +669,42 @@ export default function ResumeBuilder() {
   const [formData, setFormData] = useState(defaultForm);
   const [loadingProfile, setLoadingProfile] = useState(false);
 
+  /* AI improve */
+  const [improving, setImproving] = useState(false);
+  const [improveError, setImproveError] = useState("");
+  const [improveSuccess, setImproveSuccess] = useState(false);
+
+  const improveResume = async () => {
+    setImproving(true); setImproveError(""); setImproveSuccess(false);
+    try {
+      const result = await fetchApi("/ai/resume-improve", {
+        method: "POST",
+        body: JSON.stringify({
+          fullName: formData.fullName,
+          jobTitle: formData.jobTitle,
+          summary: formData.summary,
+          experience: formData.experience,
+          skills: formData.skills,
+        }),
+      });
+      setFormData(prev => ({
+        ...prev,
+        summary: result.summary || prev.summary,
+        jobTitle: result.jobTitle || prev.jobTitle,
+        experience: prev.experience.map((exp, i) => ({
+          ...exp,
+          description: result.experience?.[i]?.description || exp.description,
+        })),
+      }));
+      setImproveSuccess(true);
+      setTimeout(() => setImproveSuccess(false), 4000);
+    } catch (err) {
+      setImproveError(err.message || "AI improve failed. Please try again.");
+    } finally {
+      setImproving(false);
+    }
+  };
+
   /* AI analyze */
   const [resumeText, setResumeText] = useState("");
   const [targetRole, setTargetRole] = useState("");
@@ -1187,6 +1223,68 @@ export default function ResumeBuilder() {
                         rows={2}
                       />
                     </div>
+                  </div>
+                </div>
+
+                {/* AI Improve Card */}
+                <div className="rounded-2xl p-5 border overflow-hidden relative"
+                  style={{ background: "linear-gradient(135deg,#1e1b4b,#312e81,#4c1d95)", borderColor: "rgba(139,92,246,0.3)" }}>
+                  {/* Animated glow blob */}
+                  <div className="absolute -top-6 -right-6 w-24 h-24 rounded-full opacity-30 blur-2xl pointer-events-none"
+                    style={{ background: "radial-gradient(circle,#a78bfa,#7c3aed)" }} />
+                  <div className="relative">
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                        style={{ background: "linear-gradient(135deg,#8b5cf6,#6d28d9)" }}>
+                        <Sparkles className="w-4.5 h-4.5 text-white w-[18px] h-[18px]" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black text-white flex items-center gap-1.5">
+                          AI One-Click Improve
+                          <span className="text-[9px] bg-violet-500/40 text-violet-200 px-1.5 py-0.5 rounded-full font-bold border border-violet-400/30">Gemini AI</span>
+                        </h3>
+                        <p className="text-[11px] text-violet-300">Rewrites summary & experience bullets</p>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-violet-200/80 mb-4 leading-relaxed">
+                      Gemini AI will rewrite your professional summary and all work experience descriptions using strong action verbs and ATS-optimized language.
+                    </p>
+
+                    {improveSuccess && (
+                      <div className="flex items-center gap-2 text-xs text-emerald-300 bg-emerald-500/20 border border-emerald-400/30 rounded-xl px-3 py-2 mb-3">
+                        <CheckCircle className="w-4 h-4 shrink-0" />
+                        Resume improved! Check your preview.
+                      </div>
+                    )}
+                    {improveError && (
+                      <div className="text-xs text-red-300 bg-red-500/20 border border-red-400/30 rounded-xl px-3 py-2 mb-3">
+                        {improveError}
+                      </div>
+                    )}
+
+                    <button
+                      onClick={improveResume}
+                      disabled={improving}
+                      className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-60"
+                      style={{
+                        background: improving ? "rgba(139,92,246,0.4)" : "linear-gradient(135deg,#8b5cf6,#6d28d9)",
+                        boxShadow: improving ? "none" : "0 4px 20px rgba(139,92,246,0.5)",
+                        color: "white",
+                      }}
+                    >
+                      {improving ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" />Gemini is rewriting...</>
+                      ) : improveSuccess ? (
+                        <><CheckCircle className="w-4 h-4" />Improved! Run Again?</>
+                      ) : (
+                        <><Sparkles className="w-4 h-4" />Improve My Resume</>
+                      )}
+                    </button>
+
+                    <p className="text-center text-[10px] text-violet-400/70 mt-2">
+                      Your original data is preserved — you can edit after
+                    </p>
                   </div>
                 </div>
 
