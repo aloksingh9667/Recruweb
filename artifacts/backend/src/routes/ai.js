@@ -2,6 +2,7 @@ import { Router } from "express";
 import { GoogleGenAI } from "@google/genai";
 import { protect, requireRole } from "../middleware/auth.js";
 import CandidateProfile from "../models/CandidateProfile.js";
+import { logger } from "../lib/logger.js";
 
 const router = Router();
 

@@ -100,6 +100,10 @@ function App() {
                       <ProtectedRoute component={EmployerProfile} allowedRole="employer" />
                     </Route>
 
+                    {/* Admin Routes */}
+                    <Route path="/admin/login" component={AdminLogin} />
+                    <Route path="/admin/dashboard" component={AdminDashboard} />
+
                     {/* 404 */}
                     <Route path="/:rest*" component={() => (
                       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-8">

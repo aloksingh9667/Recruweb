@@ -40,10 +40,7 @@ function formatMessage(content) {
 export function AIChatbot() {
   const [open, setOpen]           = useState(false);
   const [minimized, setMin]       = useState(false);
-  const [messages, setMessages]   = useState([{
-    role: "assistant", ts: Date.now(),
-    content: "Hi! 👋 I'm your **AI Career Assistant**.\n\nAsk me about jobs, resumes, interviews, or anything career-related!",
-  }]);
+  const [messages, setMessages]   = useState([]);
   const [input, setInput]         = useState("");
   const [loading, setLoading]     = useState(false);
   const [suggestions, setSuggestions] = useState([
@@ -171,7 +168,7 @@ export function AIChatbot() {
   };
 
   const clearChat = () => {
-    setMessages([{ role: "assistant", ts: Date.now(), content: "Chat cleared! How can I help you?" }]);
+    setMessages([]);
     setSuggestions(["Find me a job", "Resume tips", "Interview prep"]);
     setInput("");
   };
