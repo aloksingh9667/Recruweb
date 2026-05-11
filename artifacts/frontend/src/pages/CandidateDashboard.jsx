@@ -8,7 +8,7 @@ import {
   Briefcase, Bookmark, BookmarkCheck, MapPin, IndianRupee,
   Clock, Building2, ExternalLink, Trash2, Send, Star,
   CheckCircle2, AlertCircle, Eye, LayoutDashboard, TrendingUp,
-  Sparkles, Target, ChevronDown, ChevronUp, Info,
+  Sparkles, Target, ChevronDown, ChevronUp, Info, Wand2,
 } from "lucide-react";
 
 /* ── Status config ── */
@@ -386,6 +386,105 @@ function StatsRow({ applications, savedCount }) {
   );
 }
 
+/* ── Shared Apply Dialog with AI Cover Letter ── */
+function ApplyDialog({ job, coverLetter, setCoverLetter, onClose, onSubmit, isPending }) {
+  const [aiLoading, setAiLoading] = useState(false);
+  const { toast } = useToast();
+  const jobId = job._id || job.id;
+  const company = job.company || job.employer?.company || "Company";
+
+  const generateCoverLetter = async () => {
+    setAiLoading(true);
+    try {
+      const res = await fetchApi("/ai/cover-letter", {
+        method: "POST",
+        body: JSON.stringify({ jobId }),
+      });
+      setCoverLetter(res.coverLetter || "");
+      toast({ title: "Cover letter generated ✓", description: "Feel free to edit before submitting." });
+    } catch (err) {
+      toast({ title: "AI error", description: err.message || "Could not generate. Try again.", variant: "destructive" });
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div
+        className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg p-6 border border-gray-200 dark:border-gray-700"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start gap-3 mb-4">
+          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${companyGrad(company)} text-white font-bold text-sm flex items-center justify-center shrink-0`}>
+            {companyInitials(company)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="font-bold text-gray-900 dark:text-gray-100 text-base leading-snug">{job.title}</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{company} · {job.location}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1">✕</button>
+        </div>
+
+        {/* Cover Letter Label + AI button */}
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-xs font-bold text-gray-700 dark:text-gray-300">
+            Cover Letter <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <button
+            type="button"
+            onClick={generateCoverLetter}
+            disabled={aiLoading}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-700 hover:bg-violet-100 dark:hover:bg-violet-900/50 disabled:opacity-60 transition-colors"
+          >
+            {aiLoading
+              ? <span className="w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+              : <Wand2 className="w-3 h-3" />
+            }
+            {aiLoading ? "Generating…" : "Write with AI"}
+            {!aiLoading && <Sparkles className="w-3 h-3" />}
+          </button>
+        </div>
+
+        <textarea
+          className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-800 dark:text-gray-200 px-4 py-3 outline-none focus:border-indigo-400 transition-colors resize-none"
+          rows={5}
+          placeholder="Briefly explain why you're a great fit for this role…"
+          value={coverLetter}
+          onChange={e => setCoverLetter(e.target.value)}
+        />
+        {aiLoading && (
+          <p className="text-[11px] text-violet-500 mt-1 flex items-center gap-1">
+            <Sparkles className="w-3 h-3" /> Gemini is writing your cover letter…
+          </p>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3 mt-4">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onSubmit}
+            disabled={isPending}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-sm font-semibold text-white transition-colors flex items-center justify-center gap-2"
+          >
+            {isPending
+              ? <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+              : <><Send className="w-4 h-4" /> Submit Application</>
+            }
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── MAIN ── */
 export default function CandidateDashboard() {
   const [tab, setTab] = useState("applications");
@@ -546,55 +645,14 @@ export default function CandidateDashboard() {
 
       {/* ── Quick Apply Dialog ── */}
       {applyDialogJob && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4" onClick={() => setApplyDialogJob(null)}>
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-          <div
-            className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg p-6 border border-gray-200 dark:border-gray-700"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-start gap-3 mb-4">
-              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${companyGrad(applyDialogJob.company || applyDialogJob.employer?.company)} text-white font-bold text-sm flex items-center justify-center shrink-0`}>
-                {companyInitials(applyDialogJob.company || applyDialogJob.employer?.company)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h2 className="font-bold text-gray-900 dark:text-gray-100 text-base leading-snug">{applyDialogJob.title}</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{applyDialogJob.company || applyDialogJob.employer?.company} · {applyDialogJob.location}</p>
-              </div>
-              <button onClick={() => setApplyDialogJob(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1">✕</button>
-            </div>
-
-            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">
-              Cover Letter <span className="text-gray-400 font-normal">(optional)</span>
-            </label>
-            <textarea
-              className="w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-800 dark:text-gray-200 px-4 py-3 outline-none focus:border-indigo-400 transition-colors resize-none"
-              rows={5}
-              placeholder="Briefly explain why you're a great fit for this role..."
-              value={coverLetter}
-              onChange={e => setCoverLetter(e.target.value)}
-            />
-
-            <div className="flex gap-3 mt-4">
-              <button
-                onClick={() => setApplyDialogJob(null)}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => applyMutation.mutate({ jobId: applyDialogJob._id || applyDialogJob.id, coverLetter })}
-                disabled={applyMutation.isPending}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-sm font-semibold text-white transition-colors flex items-center justify-center gap-2"
-              >
-                {applyMutation.isPending ? (
-                  <span className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                ) : (
-                  <><Send className="w-4 h-4" /> Submit Application</>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ApplyDialog
+          job={applyDialogJob}
+          coverLetter={coverLetter}
+          setCoverLetter={setCoverLetter}
+          onClose={() => setApplyDialogJob(null)}
+          onSubmit={() => applyMutation.mutate({ jobId: applyDialogJob._id || applyDialogJob.id, coverLetter })}
+          isPending={applyMutation.isPending}
+        />
       )}
     </div>
   );

@@ -292,6 +292,41 @@ router.post("/match-score", protect, requireRole("candidate"), async (req, res) 
   res.json(data);
 });
 
+// POST /api/ai/cover-letter  (protected — candidate only, free-plan conscious)
+router.post("/cover-letter", protect, requireRole("candidate"), async (req, res) => {
+  const { jobId } = req.body;
+  if (!jobId) return res.status(400).json({ message: "jobId required" });
+
+  const userId = req.user.id || req.user._id;
+  const [Job, User] = await Promise.all([
+    import("../models/Job.js").then(m => m.default),
+    import("../models/User.js").then(m => m.default),
+  ]);
+
+  const [job, profile, user] = await Promise.all([
+    Job.findById(jobId).select("title company category skills experienceRequired").lean(),
+    CandidateProfile.findOne({ userId }).select("skills experience currentTitle").lean(),
+    User.findById(userId).select("name").lean(),
+  ]);
+
+  if (!job) return res.status(404).json({ message: "Job not found" });
+
+  const name      = user?.name || "the applicant";
+  const candTitle = profile?.currentTitle || "professional";
+  const candSkills = (profile?.skills || []).slice(0, 5).join(", ") || "various skills";
+  const candExp   = profile?.experience ? ` with ${profile.experience} experience` : "";
+  const jobSkills = (job.skills || []).slice(0, 3).join(", ");
+
+  // Ultra-compact prompt — ~70 input tokens, 280 output max
+  const prompt =
+    `Write a professional 3-paragraph cover letter for ${name}, a ${candTitle}${candExp}.\n` +
+    `Role: "${job.title}" at ${job.company}. My skills: ${candSkills}.${jobSkills ? ` Role needs: ${jobSkills}.` : ""}\n` +
+    `Indian professional tone. Under 140 words. Only the letter body — no address/date/subject.`;
+
+  const text = await gemini(prompt, 280);
+  res.json({ coverLetter: (text || "").trim() });
+});
+
 // POST /api/ai/resume-tips-by-role
 router.post("/resume-tips-by-role", async (req, res) => {
   const { category } = req.body;

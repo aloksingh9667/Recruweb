@@ -12,7 +12,7 @@ import {
   Search, MapPin, Briefcase, IndianRupee, Clock, Bookmark,
   BookmarkCheck, SlidersHorizontal, X, ChevronDown, ChevronUp,
   Star, Building2, Users, Send, Zap, TrendingUp, Filter,
-  Sparkles, CheckCircle2, XCircle, Tag, Lightbulb, ChevronRight,
+  Sparkles, CheckCircle2, XCircle, Tag, Lightbulb, ChevronRight, Wand2,
 } from "lucide-react";
 import { formatDistanceToNow, subDays, subHours } from "date-fns";
 
@@ -504,6 +504,62 @@ function ResumeTipsPanel({ category }) {
 }
 
 /* ─── MAIN COMPONENT ─── */
+/* ── AI Cover Letter Field — shared across apply dialogs ── */
+function AICoverLetterField({ jobId, value, onChange }) {
+  const [aiLoading, setAiLoading] = useState(false);
+  const { toast } = useToast();
+
+  const generate = async () => {
+    if (!jobId) return;
+    setAiLoading(true);
+    try {
+      const res = await fetchApi("/ai/cover-letter", {
+        method: "POST",
+        body: JSON.stringify({ jobId }),
+      });
+      onChange(res.coverLetter || "");
+      toast({ title: "Cover letter generated ✓", description: "Feel free to edit before submitting." });
+    } catch (err) {
+      toast({ title: "AI error", description: err.message || "Could not generate. Try again.", variant: "destructive" });
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-sm font-medium">Cover Letter <span className="text-muted-foreground font-normal">(optional)</span></label>
+        <button
+          type="button"
+          onClick={generate}
+          disabled={aiLoading}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 disabled:opacity-60 transition-colors"
+        >
+          {aiLoading
+            ? <span className="w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+            : <Wand2 className="w-3 h-3" />
+          }
+          {aiLoading ? "Generating…" : "Write with AI"}
+          {!aiLoading && <Sparkles className="w-3 h-3" />}
+        </button>
+      </div>
+      <Textarea
+        placeholder="Tell us why you're a great fit…"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        rows={5}
+        className="resize-none"
+      />
+      {aiLoading && (
+        <p className="text-[11px] text-violet-500 mt-1 flex items-center gap-1">
+          <Sparkles className="w-3 h-3" /> Gemini is writing your cover letter…
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function Jobs() {
   const [woLocation, setLocation] = useLocation();
   const woSearch = useSearch();
@@ -632,8 +688,11 @@ export default function Jobs() {
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div>
-              <label className="text-sm font-medium block mb-1.5">Cover Letter <span className="text-muted-foreground font-normal">(optional)</span></label>
-              <Textarea placeholder="Tell us why you're a great fit..." value={coverLetter} onChange={e => setCoverLetter(e.target.value)} rows={5} className="resize-none" />
+              <AICoverLetterField
+                jobId={applyDialogJob?.id || applyDialogJob?._id}
+                value={coverLetter}
+                onChange={setCoverLetter}
+              />
             </div>
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={() => setApplyDialogJob(null)}>Cancel</Button>
