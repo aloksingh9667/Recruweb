@@ -4,6 +4,9 @@ import Job from "../models/Job.js";
 import Application from "../models/Application.js";
 import CandidateProfile from "../models/CandidateProfile.js";
 import EmployerProfile from "../models/EmployerProfile.js";
+import Contact from "../models/Contact.js";
+import Subscriber from "../models/Subscriber.js";
+import PlatformSettings from "../models/PlatformSettings.js";
 import { protect, requireRole } from "../middleware/auth.js";
 
 const router = Router();
@@ -249,6 +252,81 @@ router.get("/applications", async (req, res) => {
   ]);
   const total = countResult[0]?.total || 0;
   res.json({ applications, total, page: Number(page), totalPages: Math.ceil(total / Number(limit)) });
+});
+
+// ─── CONTACTS ─────────────────────────────────────────────────────────────────
+
+// GET /api/admin/contacts
+router.get("/contacts", async (req, res) => {
+  const { search = "", isRead, page = 1, limit = 20 } = req.query;
+  const filter = {};
+  if (isRead !== undefined && isRead !== "all") filter.isRead = isRead === "true";
+  if (search) {
+    const re = new RegExp(search, "i");
+    filter.$or = [{ name: re }, { email: re }, { subject: re }, { type: re }];
+  }
+  const skip = (Number(page) - 1) * Number(limit);
+  const [contacts, total] = await Promise.all([
+    Contact.find(filter).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)).lean(),
+    Contact.countDocuments(filter),
+  ]);
+  const unread = await Contact.countDocuments({ isRead: false });
+  res.json({ contacts, total, unread, page: Number(page), totalPages: Math.ceil(total / Number(limit)) });
+});
+
+// PUT /api/admin/contacts/:id/read
+router.put("/contacts/:id/read", async (req, res) => {
+  const c = await Contact.findByIdAndUpdate(req.params.id, { isRead: true }, { new: true });
+  if (!c) return res.status(404).json({ message: "Not found" });
+  res.json(c);
+});
+
+// DELETE /api/admin/contacts/:id
+router.delete("/contacts/:id", async (req, res) => {
+  await Contact.findByIdAndDelete(req.params.id);
+  res.json({ success: true });
+});
+
+// ─── SUBSCRIBERS ──────────────────────────────────────────────────────────────
+
+// GET /api/admin/subscribers
+router.get("/subscribers", async (req, res) => {
+  const { search = "", page = 1, limit = 20 } = req.query;
+  const filter = search ? { email: new RegExp(search, "i") } : {};
+  const skip = (Number(page) - 1) * Number(limit);
+  const [subscribers, total] = await Promise.all([
+    Subscriber.find(filter).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)).lean(),
+    Subscriber.countDocuments(filter),
+  ]);
+  res.json({ subscribers, total, page: Number(page), totalPages: Math.ceil(total / Number(limit)) });
+});
+
+// DELETE /api/admin/subscribers/:id
+router.delete("/subscribers/:id", async (req, res) => {
+  await Subscriber.findByIdAndDelete(req.params.id);
+  res.json({ success: true });
+});
+
+// ─── PLATFORM SETTINGS ────────────────────────────────────────────────────────
+
+// GET /api/admin/settings
+router.get("/settings", async (req, res) => {
+  let settings = await PlatformSettings.findOne().lean();
+  if (!settings) settings = await PlatformSettings.create({});
+  res.json(settings);
+});
+
+// PUT /api/admin/settings
+router.put("/settings", async (req, res) => {
+  const allowed = [
+    "platformName","tagline","contactEmail","supportPhone",
+    "jobApprovalMode","maintenanceMode","allowGuestBrowsing",
+    "maxJobsPerEmployer","maxAppsPerCandidate","aiEnabled","newsLetterEnabled",
+  ];
+  const update = {};
+  allowed.forEach(k => { if (req.body[k] !== undefined) update[k] = req.body[k]; });
+  let settings = await PlatformSettings.findOneAndUpdate({}, update, { new: true, upsert: true });
+  res.json(settings);
 });
 
 export default router;

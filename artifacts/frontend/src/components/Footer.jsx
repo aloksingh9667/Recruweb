@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { Link } from "wouter";
-import { Briefcase, Facebook, Twitter, Linkedin, Instagram, Youtube, Phone, Mail, MapPin } from "lucide-react";
+import { Briefcase, Facebook, Twitter, Linkedin, Instagram, Youtube, Phone, Mail, MapPin, Send, CheckCircle } from "lucide-react";
 
 const footerLinks = {
   "Find Jobs": [
@@ -61,6 +62,68 @@ const appBadges = [
   { label: "App Store", sublabel: "Download on the", icon: "⌘" },
 ];
 
+function NewsletterBox() {
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState("idle"); // idle | loading | done | error
+
+  const subscribe = async (e) => {
+    e.preventDefault();
+    if (!email) return;
+    setStatus("loading");
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, source: "footer" }),
+      });
+      const data = await res.json();
+      if (!res.ok && res.status !== 409) throw new Error(data.message);
+      setStatus("done");
+      setTimeout(() => { setStatus("idle"); setEmail(""); }, 4000);
+    } catch {
+      setStatus("error");
+      setTimeout(() => setStatus("idle"), 3000);
+    }
+  };
+
+  return (
+    <div className="bg-indigo-900/60 rounded-2xl p-5 mb-8">
+      <div className="flex items-center gap-2 mb-2">
+        <Mail className="w-4 h-4 text-indigo-300" />
+        <p className="text-white font-semibold text-sm">Stay in the loop</p>
+      </div>
+      <p className="text-gray-400 text-xs mb-4">Get the latest jobs, hiring tips & career news delivered weekly.</p>
+      {status === "done" ? (
+        <div className="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
+          <CheckCircle className="w-4 h-4" /> Subscribed! Thank you.
+        </div>
+      ) : (
+        <form onSubmit={subscribe} className="flex gap-2">
+          <input
+            type="email"
+            required
+            placeholder="your@email.com"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            className="flex-1 h-9 px-3 text-sm bg-white/10 border border-white/20 text-white placeholder:text-white/40 rounded-lg outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-all"
+          />
+          <button
+            type="submit"
+            disabled={status === "loading"}
+            className="h-9 px-4 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-60"
+          >
+            {status === "loading"
+              ? <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              : <Send className="w-3.5 h-3.5" />}
+            {status === "loading" ? "" : "Subscribe"}
+          </button>
+        </form>
+      )}
+      {status === "error" && <p className="text-red-400 text-xs mt-2">Already subscribed or something went wrong.</p>}
+    </div>
+  );
+}
+
 export default function Footer() {
   return (
     <footer className="bg-gray-900 text-gray-300">
@@ -114,13 +177,16 @@ export default function Footer() {
             </div>
 
             {/* Social Links */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 mb-6">
               {socialLinks.map(({ Icon, href, label, color }) => (
                 <a key={label} href={href} aria-label={label} className={`w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center text-gray-400 transition-colors ${color}`}>
                   <Icon className="w-4 h-4" />
                 </a>
               ))}
             </div>
+
+            {/* Newsletter */}
+            <NewsletterBox />
           </div>
 
           {/* Link Columns */}

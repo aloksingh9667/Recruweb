@@ -9,6 +9,9 @@ import AdminUsers from "@/pages/AdminUsers";
 import AdminJobs from "@/pages/AdminJobs";
 import AdminEmployers from "@/pages/AdminEmployers";
 import AdminApplications from "@/pages/AdminApplications";
+import AdminContacts from "@/pages/AdminContacts";
+import AdminSubscribers from "@/pages/AdminSubscribers";
+import AdminSettings from "@/pages/AdminSettings";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +46,15 @@ function Router() {
       </Route>
       <Route path="/applications">
         <ProtectedRoute component={AdminApplications} />
+      </Route>
+      <Route path="/contacts">
+        <ProtectedRoute component={AdminContacts} />
+      </Route>
+      <Route path="/subscribers">
+        <ProtectedRoute component={AdminSubscribers} />
+      </Route>
+      <Route path="/settings">
+        <ProtectedRoute component={AdminSettings} />
       </Route>
       <Route path="/">
         <RootRedirect />

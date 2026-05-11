@@ -6,6 +6,7 @@ import candidatesRouter from "./candidates.js";
 import employersRouter from "./employers.js";
 import adminRouter from "./admin.js";
 import aiRouter from "./ai.js";
+import publicRouter from "./public.js";
 
 const router = Router();
 
@@ -17,5 +18,6 @@ router.use("/candidates", candidatesRouter);
 router.use("/employers", employersRouter);
 router.use("/admin", adminRouter);
 router.use("/ai", aiRouter);
+router.use("/", publicRouter);
 
 export default router;

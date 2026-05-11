@@ -54,14 +54,25 @@ export default function ContactPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSending(true);
-    await new Promise(r => setTimeout(r, 1200));
-    setSending(false);
-    setSent(true);
-    toast({ title: "Message sent!", description: "We'll get back to you within 24 hours." });
-    setTimeout(() => {
-      setSent(false);
-      setForm({ name: "", email: "", phone: "", subject: "", message: "", type: "general" });
-    }, 4000);
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to send");
+      setSent(true);
+      toast({ title: "Message sent!", description: "We'll get back to you within 24 hours." });
+      setTimeout(() => {
+        setSent(false);
+        setForm({ name: "", email: "", phone: "", subject: "", message: "", type: "general" });
+      }, 4000);
+    } catch (err) {
+      toast({ title: "Error", description: err.message || "Could not send. Try again.", variant: "destructive" });
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
