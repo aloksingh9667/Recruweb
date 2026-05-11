@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { fetchApi } from "@/lib/api";
 import {
   Brain, Loader2, Zap, ChevronDown, ChevronUp, Target, Lightbulb,
   BookOpen, Mic, RotateCcw, CheckCircle, AlertCircle, Sparkles,
   Code2, Users, MessageSquare, Play, ArrowRight, ArrowLeft,
-  ThumbsUp, ThumbsDown, Trophy, Eye, EyeOff, BarChart2,
-  XCircle, Star, Pen, RefreshCw, ChevronRight,
+  ThumbsUp, ThumbsDown, Trophy, Eye, BarChart2,
+  XCircle, Pen, RefreshCw, ChevronRight, Clock, Timer,
+  Pause, Flame,
 } from "lucide-react";
 
 /* ═══════════════════════════════════════
@@ -136,57 +137,258 @@ function QuestionCard({ q, index, expanded, onToggle }) {
 }
 
 /* ═══════════════════════════════════════
+   COUNTDOWN RING WIDGET
+═══════════════════════════════════════ */
+const RADIUS = 28;
+const CIRC = 2 * Math.PI * RADIUS;
+
+function CountdownRing({ timeLeft, totalTime, paused }) {
+  const pct = totalTime > 0 ? timeLeft / totalTime : 0;
+  const offset = CIRC * (1 - pct);
+
+  const color =
+    pct > 0.5 ? "#10b981" :
+    pct > 0.25 ? "#f59e0b" : "#ef4444";
+
+  const urgent = pct <= 0.25 && !paused;
+
+  return (
+    <div className="relative flex items-center justify-center"
+      style={{ width: 72, height: 72, animation: urgent ? "urgentPulse 0.8s ease-in-out infinite" : "none" }}>
+      <svg viewBox="0 0 64 64" className="w-full h-full -rotate-90 absolute inset-0">
+        <circle cx="32" cy="32" r={RADIUS} fill="none" stroke="#e5e7eb" strokeWidth="5" />
+        <circle
+          cx="32" cy="32" r={RADIUS}
+          fill="none"
+          stroke={color}
+          strokeWidth="5"
+          strokeDasharray={CIRC}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          style={{ transition: "stroke-dashoffset 0.9s linear, stroke 0.4s ease" }}
+        />
+      </svg>
+      <div className="flex flex-col items-center justify-center z-10">
+        <span className="text-base font-black leading-none" style={{ color }}>
+          {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, "0")}
+        </span>
+        {paused
+          ? <Pause className="w-2.5 h-2.5 mt-0.5" style={{ color }} />
+          : <Clock className="w-2.5 h-2.5 mt-0.5" style={{ color }} />
+        }
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
    PRACTICE MODE COMPONENT
 ═══════════════════════════════════════ */
+const TIME_OPTIONS = [
+  { label: "1 min", seconds: 60 },
+  { label: "2 min", seconds: 120 },
+  { label: "3 min", seconds: 180 },
+];
+
 function PracticeMode({ questions, jobTitle, onExit }) {
+  /* phase: "lobby" | "active" | "finished" */
+  const [phase, setPhase] = useState("lobby");
+  const [timedMode, setTimedMode] = useState(false);
+  const [timePerQ, setTimePerQ] = useState(120);
+
   const [currentIdx, setCurrentIdx] = useState(0);
   const [userAnswer, setUserAnswer] = useState("");
   const [revealed, setRevealed] = useState(false);
-  const [ratings, setRatings] = useState({}); // { [idx]: "good" | "needs_work" }
-  const [finished, setFinished] = useState(false);
+  const [ratings, setRatings] = useState({});
+  const [timeLeft, setTimeLeft] = useState(timePerQ);
+  const [timerPaused, setTimerPaused] = useState(false);
+  const [timeExpired, setTimeExpired] = useState(false);
+
   const textareaRef = useRef(null);
+  const intervalRef = useRef(null);
 
   const q = questions[currentIdx];
   const total = questions.length;
   const answered = Object.keys(ratings).length;
   const goodCount = Object.values(ratings).filter(r => r === "good").length;
-  const progress = ((currentIdx) / total) * 100;
+  const progress = (currentIdx / total) * 100;
   const typeCfg = TYPE_CONFIG[q?.type] || TYPE_CONFIG.behavioral;
+  const isRated = ratings[currentIdx] !== undefined;
 
+  /* ── Timer logic ── */
+  const stopTimer = useCallback(() => {
+    clearInterval(intervalRef.current);
+    intervalRef.current = null;
+  }, []);
+
+  const startTimer = useCallback(() => {
+    stopTimer();
+    intervalRef.current = setInterval(() => {
+      setTimeLeft(t => {
+        if (t <= 1) {
+          clearInterval(intervalRef.current);
+          setTimeExpired(true);
+          setRevealed(true);
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+  }, [stopTimer]);
+
+  /* Reset timer + textarea on question change */
   useEffect(() => {
     setUserAnswer("");
     setRevealed(false);
+    setTimeExpired(false);
+    setTimerPaused(false);
+    setTimeLeft(timePerQ);
     if (textareaRef.current) textareaRef.current.focus();
-  }, [currentIdx]);
+    if (phase === "active" && timedMode) startTimer();
+    return () => stopTimer();
+  }, [currentIdx, phase]); // eslint-disable-line
+
+  /* Pause timer when revealed */
+  useEffect(() => {
+    if (revealed) {
+      stopTimer();
+      setTimerPaused(true);
+    }
+  }, [revealed, stopTimer]);
+
+  /* Cleanup on unmount */
+  useEffect(() => () => stopTimer(), [stopTimer]);
+
+  const handleReveal = () => setRevealed(true);
 
   const handleRate = (rating) => {
     setRatings(prev => ({ ...prev, [currentIdx]: rating }));
     setTimeout(() => {
-      if (currentIdx < total - 1) {
-        setCurrentIdx(i => i + 1);
-      } else {
-        setFinished(true);
-      }
-    }, 380);
+      if (currentIdx < total - 1) setCurrentIdx(i => i + 1);
+      else setPhase("finished");
+    }, 350);
   };
-
-  const handleReveal = () => setRevealed(true);
 
   const handleSkip = () => {
+    stopTimer();
     if (currentIdx < total - 1) setCurrentIdx(i => i + 1);
-    else setFinished(true);
+    else setPhase("finished");
   };
 
-  const handleRestart = () => {
+  const handleNext = () => {
+    stopTimer();
+    if (currentIdx < total - 1) setCurrentIdx(i => i + 1);
+    else setPhase("finished");
+  };
+
+  const handlePrev = () => {
+    stopTimer();
+    if (currentIdx > 0) setCurrentIdx(i => i - 1);
+  };
+
+  const startPractice = (timed) => {
+    setTimedMode(timed);
     setCurrentIdx(0);
     setUserAnswer("");
     setRevealed(false);
     setRatings({});
-    setFinished(false);
+    setTimeLeft(timePerQ);
+    setTimeExpired(false);
+    setTimerPaused(false);
+    setPhase("active");
+    if (timed) startTimer();
   };
 
-  /* ── Final Results Screen ── */
-  if (finished) {
+  const handleRestart = () => {
+    stopTimer();
+    setPhase("lobby");
+  };
+
+  /* ════════════════════════════════
+     LOBBY SCREEN
+  ════════════════════════════════ */
+  if (phase === "lobby") {
+    return (
+      <div className="max-w-2xl mx-auto scale-in">
+        {/* Back */}
+        <button onClick={onExit}
+          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 font-medium mb-6 px-3 py-1.5 rounded-xl hover:bg-white border border-transparent hover:border-gray-200 transition-all">
+          <ArrowLeft className="w-3.5 h-3.5" /> Back to Questions
+        </button>
+
+        {/* Header */}
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-xl"
+            style={{ background: "linear-gradient(135deg,#10b981,#059669)" }}>
+            <Play className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-black text-gray-900 mb-1">Choose Practice Mode</h2>
+          <p className="text-gray-500 text-sm">{total} questions · {jobTitle}</p>
+        </div>
+
+        {/* Mode cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          {/* Free Practice */}
+          <button onClick={() => startPractice(false)}
+            className="group text-left p-6 rounded-2xl border-2 bg-white hover:border-indigo-400 hover:shadow-xl transition-all duration-300"
+            style={{ borderColor: "#e5e7eb" }}>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-all group-hover:scale-110"
+              style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
+              <Pen className="w-6 h-6 text-white" />
+            </div>
+            <h3 className="font-black text-gray-900 text-base mb-1">Free Practice</h3>
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Answer at your own pace. No time pressure — ideal for deep thinking and thorough answers.
+            </p>
+            <div className="mt-4 flex items-center gap-1.5 text-xs font-bold text-indigo-600">
+              Start Free <ChevronRight className="w-3.5 h-3.5" />
+            </div>
+          </button>
+
+          {/* Timed Practice */}
+          <div className="p-6 rounded-2xl border-2 bg-white border-orange-200 hover:border-orange-400 hover:shadow-xl transition-all duration-300">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
+              style={{ background: "linear-gradient(135deg,#f59e0b,#ef4444)" }}>
+              <Flame className="w-6 h-6 text-white" />
+            </div>
+            <h3 className="font-black text-gray-900 text-base mb-1">Timed Mock Interview</h3>
+            <p className="text-xs text-gray-500 leading-relaxed mb-4">
+              Race against the clock like a real interview. Timer auto-reveals when time's up.
+            </p>
+
+            {/* Time picker */}
+            <div className="mb-4">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Time per question</p>
+              <div className="flex gap-2">
+                {TIME_OPTIONS.map(opt => (
+                  <button key={opt.seconds} onClick={() => setTimePerQ(opt.seconds)}
+                    className="flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all"
+                    style={{
+                      background: timePerQ === opt.seconds ? "linear-gradient(135deg,#f59e0b,#ef4444)" : "white",
+                      borderColor: timePerQ === opt.seconds ? "transparent" : "#e5e7eb",
+                      color: timePerQ === opt.seconds ? "white" : "#374151",
+                    }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={() => startPractice(true)}
+              className="w-full py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all hover:scale-[1.01]"
+              style={{ background: "linear-gradient(135deg,#f59e0b,#ef4444)", boxShadow: "0 4px 14px rgba(245,158,11,0.35)" }}>
+              <Timer className="w-4 h-4" /> Start Timed ({TIME_OPTIONS.find(o => o.seconds === timePerQ)?.label})
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ════════════════════════════════
+     RESULTS SCREEN
+  ════════════════════════════════ */
+  if (phase === "finished") {
     const pct = Math.round((goodCount / total) * 100);
     const grade =
       pct >= 80 ? { label: "Excellent!", color: "#10b981", icon: "🏆", msg: "You're interview-ready! Outstanding performance." } :
@@ -196,10 +398,9 @@ function PracticeMode({ questions, jobTitle, onExit }) {
 
     const byType = questions.reduce((acc, q, i) => {
       const r = ratings[i];
-      if (!acc[q.type]) acc[q.type] = { good: 0, needs: 0, total: 0 };
+      if (!acc[q.type]) acc[q.type] = { good: 0, total: 0 };
       acc[q.type].total++;
       if (r === "good") acc[q.type].good++;
-      else if (r === "needs_work") acc[q.type].needs++;
       return acc;
     }, {});
 
@@ -213,8 +414,12 @@ function PracticeMode({ questions, jobTitle, onExit }) {
           <div className="relative">
             <div className="text-5xl mb-3">{grade.icon}</div>
             <h2 className="text-2xl font-black text-white mb-1">{grade.label}</h2>
-            <p className="text-violet-200 text-sm max-w-xs mx-auto">{grade.msg}</p>
-
+            <p className="text-violet-200 text-sm max-w-xs mx-auto mb-1">{grade.msg}</p>
+            {timedMode && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-3 py-1 rounded-full bg-orange-500/30 text-orange-200 border border-orange-400/30 mt-1">
+                <Timer className="w-3 h-3" /> Timed Mode · {TIME_OPTIONS.find(o => o.seconds === timePerQ)?.label}/q
+              </span>
+            )}
             {/* Score ring */}
             <div className="flex items-center justify-center mt-6 gap-8">
               <div className="relative w-24 h-24">
@@ -263,7 +468,7 @@ function PracticeMode({ questions, jobTitle, onExit }) {
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2 text-xs font-semibold capitalize text-gray-700">
                       <Icon className="w-3.5 h-3.5" style={{ color: cfg.color }} />{type}
-                      <span className="text-gray-400 font-normal">({data.total} questions)</span>
+                      <span className="text-gray-400 font-normal">({data.total} q)</span>
                     </div>
                     <span className="text-xs font-black" style={{ color: cfg.color }}>{typePct}%</span>
                   </div>
@@ -315,19 +520,27 @@ function PracticeMode({ questions, jobTitle, onExit }) {
     );
   }
 
-  /* ── Active Practice Card ── */
-  const isRated = ratings[currentIdx] !== undefined;
-
+  /* ════════════════════════════════
+     ACTIVE PRACTICE CARD
+  ════════════════════════════════ */
   return (
     <div className="max-w-2xl mx-auto">
       {/* Header bar */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-4">
         <button onClick={onExit}
           className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 font-medium transition-colors px-3 py-1.5 rounded-xl hover:bg-white border border-transparent hover:border-gray-200">
-          <ArrowLeft className="w-3.5 h-3.5" /> Exit Practice
+          <ArrowLeft className="w-3.5 h-3.5" /> Exit
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* Timed mode badge */}
+          {timedMode && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
+              style={{ background: "linear-gradient(135deg,#f59e0b22,#ef444422)", color: "#d97706", border: "1px solid #fde68a" }}>
+              <Flame className="w-2.5 h-2.5" /> Timed
+            </span>
+          )}
           <span className="text-xs font-bold text-gray-500">{currentIdx + 1} / {total}</span>
+          {/* Dot tracker */}
           <div className="flex gap-1">
             {questions.map((_, i) => {
               const r = ratings[i];
@@ -346,7 +559,7 @@ function PracticeMode({ questions, jobTitle, onExit }) {
       </div>
 
       {/* Progress bar */}
-      <div className="w-full h-1.5 bg-gray-100 rounded-full mb-6 overflow-hidden">
+      <div className="w-full h-1.5 bg-gray-100 rounded-full mb-5 overflow-hidden">
         <div className="h-full rounded-full transition-all duration-500"
           style={{ width: `${progress}%`, background: "linear-gradient(90deg,#6366f1,#8b5cf6)" }} />
       </div>
@@ -356,22 +569,38 @@ function PracticeMode({ questions, jobTitle, onExit }) {
         style={{ borderColor: typeCfg.border, boxShadow: `0 8px 40px ${typeCfg.color}18` }}>
 
         {/* Question zone */}
-        <div className="p-6 sm:p-8" style={{ background: `linear-gradient(135deg,${typeCfg.bg},white)` }}>
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-black text-white shadow-md"
-              style={{ background: `linear-gradient(135deg,${typeCfg.color},${typeCfg.color}99)` }}>
-              {currentIdx + 1}
+        <div className="p-6 sm:p-7" style={{ background: `linear-gradient(135deg,${typeCfg.bg},white)` }}>
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-black text-white shadow-md shrink-0"
+                style={{ background: `linear-gradient(135deg,${typeCfg.color},${typeCfg.color}99)` }}>
+                {currentIdx + 1}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <TypeBadge type={q.type} />
+                <DiffBadge difficulty={q.difficulty} />
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <TypeBadge type={q.type} />
-              <DiffBadge difficulty={q.difficulty} />
-            </div>
+
+            {/* Timer ring */}
+            {timedMode && (
+              <div className="shrink-0">
+                <CountdownRing timeLeft={timeLeft} totalTime={timePerQ} paused={timerPaused} />
+              </div>
+            )}
           </div>
           <p className="text-lg sm:text-xl font-bold text-gray-900 leading-snug">{q.question}</p>
+
+          {/* Time expired notice */}
+          {timeExpired && (
+            <div className="mt-3 flex items-center gap-2 text-xs font-bold text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">
+              <Timer className="w-3.5 h-3.5" /> Time's up! See the ideal answer below.
+            </div>
+          )}
         </div>
 
         {/* Answer zone */}
-        <div className="p-6 sm:p-8 space-y-4 border-t border-gray-100">
+        <div className="p-6 sm:p-7 space-y-4 border-t border-gray-100">
           <div>
             <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1.5">
               <Pen className="w-3 h-3" /> Your Answer
@@ -382,25 +611,20 @@ function PracticeMode({ questions, jobTitle, onExit }) {
               placeholder="Type your answer here... (use the STAR method: Situation, Task, Action, Result)"
               value={userAnswer}
               onChange={e => setUserAnswer(e.target.value)}
-              rows={5}
+              rows={4}
               disabled={revealed}
             />
           </div>
 
-          {/* Reveal / Ideal answer */}
+          {/* Reveal / Answer */}
           {!revealed ? (
             <button onClick={handleReveal}
               className="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all border-2 hover:scale-[1.01]"
-              style={{
-                borderColor: typeCfg.color,
-                color: typeCfg.color,
-                background: typeCfg.bg,
-              }}>
+              style={{ borderColor: typeCfg.color, color: typeCfg.color, background: typeCfg.bg }}>
               <Eye className="w-4 h-4" /> Reveal Ideal Answer
             </button>
           ) : (
             <div className="space-y-3 scale-in">
-              {/* Ideal answer */}
               <div className="rounded-xl p-4 border" style={{ background: typeCfg.bg, borderColor: typeCfg.border }}>
                 <div className="flex items-center gap-2 mb-2">
                   <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: typeCfg.color }}>
@@ -411,7 +635,6 @@ function PracticeMode({ questions, jobTitle, onExit }) {
                 <p className="text-sm text-gray-700 leading-relaxed">{q.answer}</p>
               </div>
 
-              {/* Coaching tip */}
               {q.tip && (
                 <div className="flex items-start gap-2.5 rounded-xl p-3 bg-amber-50 border border-amber-200">
                   <Lightbulb className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
@@ -419,7 +642,6 @@ function PracticeMode({ questions, jobTitle, onExit }) {
                 </div>
               )}
 
-              {/* Self rating */}
               {!isRated ? (
                 <div className="pt-1">
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 text-center">How did you do?</p>
@@ -437,7 +659,7 @@ function PracticeMode({ questions, jobTitle, onExit }) {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-center gap-2 py-2">
+                <div className="flex items-center justify-center gap-2 py-1">
                   {ratings[currentIdx] === "good" ? (
                     <div className="flex items-center gap-2 text-emerald-600 bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl text-sm font-bold">
                       <CheckCircle className="w-4 h-4" /> Marked as Got It
@@ -454,31 +676,27 @@ function PracticeMode({ questions, jobTitle, onExit }) {
         </div>
       </div>
 
-      {/* Nav buttons */}
+      {/* Nav row */}
       <div className="flex items-center justify-between gap-3">
-        <button
-          onClick={() => { if (currentIdx > 0) setCurrentIdx(i => i - 1); }}
-          disabled={currentIdx === 0}
+        <button onClick={handlePrev} disabled={currentIdx === 0}
           className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-500 text-sm font-semibold hover:bg-white disabled:opacity-30 transition-all">
           <ArrowLeft className="w-4 h-4" /> Prev
         </button>
 
-        <div className="text-center">
-          <div className="flex items-center gap-1 text-xs text-gray-400">
-            <CheckCircle className="w-3 h-3 text-emerald-400" />
-            <span className="font-bold text-emerald-500">{goodCount}</span> got it ·
-            <span className="font-bold text-red-400 ml-1">{Object.values(ratings).filter(r => r === "needs_work").length}</span> needs work
-          </div>
+        <div className="flex items-center gap-1 text-xs text-gray-400">
+          <CheckCircle className="w-3 h-3 text-emerald-400" />
+          <span className="font-bold text-emerald-500">{goodCount}</span> got it ·
+          <span className="font-bold text-red-400 ml-1">{Object.values(ratings).filter(r => r === "needs_work").length}</span> needs work
         </div>
 
         {currentIdx < total - 1 ? (
-          <button onClick={() => setCurrentIdx(i => i + 1)}
+          <button onClick={handleNext}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-[1.02]"
             style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
             Next <ArrowRight className="w-4 h-4" />
           </button>
         ) : (
-          <button onClick={() => setFinished(true)}
+          <button onClick={() => setPhase("finished")}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-white text-sm font-bold transition-all hover:scale-[1.02]"
             style={{ background: "linear-gradient(135deg,#10b981,#059669)", boxShadow: "0 4px 12px rgba(16,185,129,0.3)" }}>
             Finish <Trophy className="w-4 h-4" />
