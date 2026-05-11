@@ -1,13 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api";
 import { Link, useLocation } from "wouter";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import useEmblaCarousel from "embla-carousel-react";
 import {
-  Search, MapPin, ChevronDown, Briefcase, Building2, ChevronRight,
+  Search, MapPin, ChevronDown, Briefcase, Building2, ChevronRight, ChevronLeft,
   Star, Users, TrendingUp, Code, BarChart2, Megaphone,
   GraduationCap, Palette, Wrench, ShieldCheck,
   ArrowRight, Clock, Zap, Award, CheckCircle,
-  IndianRupee, Quote,
+  IndianRupee, Quote, Sparkles, Brain, Target, FileText, Rocket,
 } from "lucide-react";
 
 const EXPERIENCE_OPTIONS = [
@@ -129,6 +130,226 @@ function StatCard({ icon: Icon, value, suffix, label, color }) {
       <div className="text-xl sm:text-3xl font-extrabold text-gray-900 dark:text-white">{num.toLocaleString()}{suffix}</div>
       <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5 sm:mt-1">{label}</div>
     </div>
+  );
+}
+
+const TESTIMONIALS_EXTENDED = [
+  {
+    name: "Priya Sharma", role: "Software Engineer at TCS", location: "Bangalore",
+    avatar: "PS", color: "#6366f1", rating: 5,
+    text: "Recruweb's AI assistant helped me tailor my resume perfectly. Got 3 interview calls within a week! The job matching feature is spot on.",
+    company: "TCS",
+  },
+  {
+    name: "Rahul Verma", role: "Data Analyst at Infosys", location: "Hyderabad",
+    avatar: "RV", color: "#8b5cf6", rating: 5,
+    text: "Found my dream job in just 2 weeks. The interview prep section with company-specific questions gave me the confidence I needed.",
+    company: "Infosys",
+  },
+  {
+    name: "Ananya Patel", role: "Product Manager at Flipkart", location: "Mumbai",
+    avatar: "AP", color: "#06b6d4", rating: 5,
+    text: "The Resume Analyzer feature is incredible — it gave me actionable tips to beat ATS filters. Highly recommend Recruweb to every job seeker!",
+    company: "Flipkart",
+  },
+  {
+    name: "Karan Singh", role: "DevOps Engineer at HCL", location: "Noida",
+    avatar: "KS", color: "#10b981", rating: 5,
+    text: "Recruweb's walk-in job alerts saved me so much time. The platform is super clean and easy to use. Found a job 40% above my previous salary!",
+    company: "HCL",
+  },
+  {
+    name: "Shreya Gupta", role: "UI/UX Designer at Wipro", location: "Pune",
+    avatar: "SG", color: "#f59e0b", rating: 5,
+    text: "Within days of creating my profile, I got shortlisted for 4 design roles. The AI job match is surprisingly accurate — it really understands my skills.",
+    company: "Wipro",
+  },
+  {
+    name: "Arjun Malhotra", role: "Full Stack Dev at Accenture", location: "Delhi NCR",
+    avatar: "AM", color: "#ec4899", rating: 5,
+    text: "The one-click apply feature and instant status updates kept me informed throughout the process. Landed my first MNC job right here!",
+    company: "Accenture",
+  },
+];
+
+function TestimonialsCarousel() {
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    loop: true,
+    align: "start",
+    slidesToScroll: 1,
+    breakpoints: {
+      "(min-width: 768px)": { slidesToScroll: 1 },
+    },
+  });
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(true);
+
+  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
+  const scrollTo = useCallback((i) => emblaApi?.scrollTo(i), [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    const onSelect = () => {
+      setSelectedIndex(emblaApi.selectedScrollSnap());
+      setCanScrollPrev(emblaApi.canScrollPrev());
+      setCanScrollNext(emblaApi.canScrollNext());
+    };
+    emblaApi.on("select", onSelect);
+    emblaApi.on("reInit", onSelect);
+    onSelect();
+    return () => { emblaApi.off("select", onSelect); emblaApi.off("reInit", onSelect); };
+  }, [emblaApi]);
+
+  // Auto-play
+  useEffect(() => {
+    if (!emblaApi) return;
+    const timer = setInterval(() => emblaApi.scrollNext(), 4000);
+    return () => clearInterval(timer);
+  }, [emblaApi]);
+
+  return (
+    <section className="py-16 sm:py-24 relative overflow-hidden" style={{ background: "linear-gradient(160deg,#0a0a1a 0%,#1a1033 50%,#0d1527 100%)" }}>
+      {/* Background decoration */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-1/4 w-72 h-72 rounded-full opacity-15" style={{ background: "radial-gradient(circle,#6366f1,transparent)", filter: "blur(60px)" }} />
+        <div className="absolute bottom-0 right-1/4 w-72 h-72 rounded-full opacity-15" style={{ background: "radial-gradient(circle,#8b5cf6,transparent)", filter: "blur(60px)" }} />
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 relative z-10">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between mb-10 gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold mb-4 border"
+              style={{ background: "rgba(251,191,36,0.12)", borderColor: "rgba(251,191,36,0.3)", color: "#fbbf24" }}>
+              <Award className="w-3.5 h-3.5" /> Trusted by 10 Lakh+ Job Seekers
+            </div>
+            <h2 className="text-2xl sm:text-4xl font-black text-white leading-tight mb-2">
+              What Our Users Say
+            </h2>
+            <p className="text-gray-400 text-sm sm:text-base">Real stories from real people who found their dream jobs on Recruweb</p>
+          </div>
+          {/* Prev / Next buttons */}
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={scrollPrev}
+              className="w-11 h-11 rounded-full flex items-center justify-center border transition-all duration-200 hover:scale-110"
+              style={{ background: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)", color: "white" }}
+              aria-label="Previous"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <button
+              onClick={scrollNext}
+              className="w-11 h-11 rounded-full flex items-center justify-center border transition-all duration-200 hover:scale-110"
+              style={{ background: "rgba(99,102,241,0.25)", borderColor: "rgba(99,102,241,0.5)", color: "#a5b4fc" }}
+              aria-label="Next"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Carousel */}
+        <div className="overflow-hidden" ref={emblaRef}>
+          <div className="flex gap-5" style={{ touchAction: "pan-y" }}>
+            {TESTIMONIALS_EXTENDED.map(({ name, role, location, avatar, color, rating, text, company }) => (
+              <div
+                key={name}
+                className="shrink-0 w-full sm:w-[calc(50%-10px)] lg:w-[calc(33.333%-14px)]"
+              >
+                <div
+                  className="h-full rounded-2xl p-6 flex flex-col relative overflow-hidden"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    backdropFilter: "blur(16px)",
+                  }}
+                >
+                  {/* Glow accent */}
+                  <div className="absolute -top-10 -right-10 w-28 h-28 rounded-full pointer-events-none"
+                    style={{ background: `radial-gradient(circle,${color}40,transparent)`, filter: "blur(20px)" }} />
+
+                  {/* Giant quote mark */}
+                  <div className="absolute top-4 right-5 text-7xl font-black leading-none select-none pointer-events-none" style={{ color: `${color}20` }}>"</div>
+
+                  {/* Stars */}
+                  <div className="flex items-center gap-1 mb-4">
+                    {Array.from({ length: rating }).map((_, i) => (
+                      <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
+                    ))}
+                  </div>
+
+                  {/* Quote text */}
+                  <p className="text-gray-200 text-sm sm:text-[15px] leading-relaxed flex-1 mb-6 relative z-10">
+                    "{text}"
+                  </p>
+
+                  {/* Divider */}
+                  <div className="h-px mb-4" style={{ background: `linear-gradient(90deg,${color}50,transparent)` }} />
+
+                  {/* Avatar + info */}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-11 h-11 rounded-full flex items-center justify-center text-white font-black text-sm shrink-0 shadow-lg"
+                      style={{ background: `linear-gradient(135deg,${color},${color}88)`, boxShadow: `0 4px 16px ${color}50` }}
+                    >
+                      {avatar}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-white truncate">{name}</div>
+                      <div className="text-[11px] text-gray-400 truncate">{role}</div>
+                      <div className="flex items-center gap-1 text-[10px] mt-0.5" style={{ color: `${color}cc` }}>
+                        <MapPin className="w-2.5 h-2.5 shrink-0" />{location}
+                      </div>
+                    </div>
+                    <div
+                      className="text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0"
+                      style={{ background: `${color}20`, color, border: `1px solid ${color}40` }}
+                    >
+                      {company}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Dot indicators */}
+        <div className="flex items-center justify-center gap-2 mt-8">
+          {TESTIMONIALS_EXTENDED.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => scrollTo(i)}
+              className="rounded-full transition-all duration-300"
+              style={{
+                width: selectedIndex === i ? "28px" : "8px",
+                height: "8px",
+                background: selectedIndex === i ? "#6366f1" : "rgba(255,255,255,0.2)",
+              }}
+              aria-label={`Go to slide ${i + 1}`}
+            />
+          ))}
+        </div>
+
+        {/* Stats strip */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-12">
+          {[
+            { value: "10L+", label: "Job Seekers", color: "#6366f1" },
+            { value: "4.9★", label: "Average Rating", color: "#f59e0b" },
+            { value: "85%", label: "Placement Rate", color: "#10b981" },
+            { value: "2 Weeks", label: "Avg. Time to Hire", color: "#8b5cf6" },
+          ].map(({ value, label, color }) => (
+            <div key={label} className="text-center p-4 rounded-2xl" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <div className="text-xl sm:text-2xl font-black mb-1" style={{ color }}>{value}</div>
+              <div className="text-xs text-gray-400">{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -568,40 +789,128 @@ export default function Home() {
       {/* ══════════════════════════════════════════════════
           FEATURES STRIP
       ══════════════════════════════════════════════════ */}
-      <section className="py-10 sm:py-16 bg-white dark:bg-gray-900">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-7 sm:mb-10">
-            <h2 className="text-xl sm:text-2xl font-extrabold text-gray-900 dark:text-white mb-2">Everything You Need to Land Your Next Job</h2>
-            <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">Powered by Gemini AI for smarter career decisions</p>
+      <section className="py-14 sm:py-20 relative overflow-hidden" style={{ background: "linear-gradient(135deg,#0f0c29,#302b63,#24243e)" }}>
+        {/* Ambient blobs */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-40 -left-40 w-96 h-96 rounded-full opacity-20" style={{ background: "radial-gradient(circle,#6366f1,transparent)" }} />
+          <div className="absolute -bottom-40 -right-40 w-96 h-96 rounded-full opacity-20" style={{ background: "radial-gradient(circle,#8b5cf6,transparent)" }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-10" style={{ background: "radial-gradient(circle,#3b82f6,transparent)" }} />
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 relative z-10">
+          {/* Header */}
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold mb-4 border" style={{ background: "rgba(99,102,241,0.15)", borderColor: "rgba(99,102,241,0.35)", color: "#a5b4fc" }}>
+              <Sparkles className="w-3.5 h-3.5" /> Powered by Gemini AI
+            </div>
+            <h2 className="text-2xl sm:text-4xl font-black text-white mb-3 leading-tight">
+              Everything You Need to<br className="hidden sm:block" />
+              <span style={{ background: "linear-gradient(90deg,#818cf8,#c084fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}> Land Your Next Job</span>
+            </h2>
+            <p className="text-sm sm:text-base text-gray-400 max-w-xl mx-auto">Smarter tools, AI-powered insights, and everything a modern job seeker needs — all in one place.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+
+          {/* Feature Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
             {[
               {
-                icon: "🤖", title: "AI Career Assistant",
-                desc: "Chat with our Gemini-powered AI to get job suggestions, interview tips, and resume advice — all personalized for you.",
-                color: "#6366f1", link: null, label: "Try it now ↗",
+                Icon: Brain, title: "AI Career Assistant",
+                desc: "Chat with our Gemini-powered AI for personalized job suggestions, interview tips, and resume advice — available 24/7.",
+                gradient: "linear-gradient(135deg,#6366f1,#4f46e5)",
+                glow: "#6366f1",
+                link: null, label: "Chat now →",
+                badge: "Live AI",
               },
               {
-                icon: "📄", title: "AI Resume Analyzer",
-                desc: "Upload your resume and get instant ATS score, keyword gaps, and actionable suggestions to beat automated filters.",
-                color: "#8b5cf6", link: "/candidate/resume-builder?tab=analyze", label: "Analyze Resume →",
+                Icon: FileText, title: "AI Resume Analyzer",
+                desc: "Instant ATS score, keyword gap analysis, and actionable improvement suggestions to beat automated filters.",
+                gradient: "linear-gradient(135deg,#8b5cf6,#7c3aed)",
+                glow: "#8b5cf6",
+                link: "/candidate/resume-builder?tab=analyze", label: "Analyze my resume →",
+                badge: "Instant Results",
               },
               {
-                icon: "🎯", title: "AI Job Match",
-                desc: "Our smart algorithm matches you to jobs that fit your skills, experience, and salary expectations.",
-                color: "#3b82f6", link: "/candidate/job-match", label: "See Matches →",
+                Icon: Target, title: "AI Job Match",
+                desc: "Our smart algorithm matches you to jobs that fit your skills, experience, and salary expectations perfectly.",
+                gradient: "linear-gradient(135deg,#3b82f6,#2563eb)",
+                glow: "#3b82f6",
+                link: "/candidate/job-match", label: "See my matches →",
+                badge: "Smart Match",
               },
-            ].map(({ icon, title, desc, color, link, label }) => (
-              <div key={title} className="card-hover relative overflow-hidden bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-7">
-                <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-5 -translate-y-1/2 translate-x-1/2"
-                  style={{ background: color }} />
-                <div className="text-4xl mb-4">{icon}</div>
-                <h3 className="font-extrabold text-gray-900 dark:text-white text-base mb-2">{title}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-4">{desc}</p>
-                {link && (
+              {
+                Icon: Rocket, title: "Priority Applicant",
+                desc: "Get your profile seen first by top employers. Stand out from thousands of applicants with a featured badge.",
+                gradient: "linear-gradient(135deg,#f59e0b,#d97706)",
+                glow: "#f59e0b",
+                link: null, label: "Go Priority →",
+                badge: "Featured",
+              },
+              {
+                Icon: GraduationCap, title: "Interview Prep",
+                desc: "Practice with real company-specific and role-specific questions. Build confidence before your big day.",
+                gradient: "linear-gradient(135deg,#10b981,#059669)",
+                glow: "#10b981",
+                link: "/interview-prep", label: "Start practicing →",
+                badge: "10k+ Questions",
+              },
+              {
+                Icon: Zap, title: "Instant Job Alerts",
+                desc: "Never miss a perfect opportunity. Get notified the moment a matching job is posted — before the rush.",
+                gradient: "linear-gradient(135deg,#ec4899,#db2777)",
+                glow: "#ec4899",
+                link: "/jobs", label: "Explore jobs →",
+                badge: "Real-time",
+              },
+            ].map(({ Icon, title, desc, gradient, glow, link, label, badge }) => (
+              <div
+                key={title}
+                className="group relative overflow-hidden rounded-2xl p-6 flex flex-col cursor-default"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  backdropFilter: "blur(12px)",
+                  transition: "all 0.35s cubic-bezier(0.34,1.56,0.64,1)",
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = "translateY(-6px)";
+                  e.currentTarget.style.boxShadow = `0 24px 48px ${glow}30`;
+                  e.currentTarget.style.border = `1px solid ${glow}50`;
+                  e.currentTarget.style.background = `linear-gradient(135deg,${glow}18,${glow}08)`;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "none";
+                  e.currentTarget.style.border = "1px solid rgba(255,255,255,0.08)";
+                  e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                }}
+              >
+                {/* Glow orb */}
+                <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                  style={{ background: `radial-gradient(circle,${glow}50,transparent)` }} />
+
+                {/* Icon */}
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 shrink-0"
+                  style={{ background: gradient, boxShadow: `0 8px 20px ${glow}50` }}>
+                  <Icon className="w-7 h-7 text-white" />
+                </div>
+
+                {/* Badge */}
+                <span className="inline-block text-[10px] font-bold tracking-widest uppercase px-2.5 py-0.5 rounded-full mb-3 w-fit"
+                  style={{ background: `${glow}25`, color: glow, border: `1px solid ${glow}40` }}>
+                  {badge}
+                </span>
+
+                <h3 className="text-base sm:text-lg font-extrabold text-white mb-2">{title}</h3>
+                <p className="text-sm text-gray-400 leading-relaxed flex-1 mb-4">{desc}</p>
+
+                {link ? (
                   <Link href={link}>
-                    <span className="text-sm font-semibold" style={{ color }}>{label}</span>
+                    <span className="text-sm font-bold inline-flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: glow }}>
+                      {label} <ArrowRight className="w-3.5 h-3.5" />
+                    </span>
                   </Link>
+                ) : (
+                  <span className="text-sm font-bold inline-flex items-center gap-1" style={{ color: glow }}>{label}</span>
                 )}
               </div>
             ))}
@@ -610,47 +919,9 @@ export default function Home() {
       </section>
 
       {/* ══════════════════════════════════════════════════
-          TESTIMONIALS
+          TESTIMONIALS CAROUSEL
       ══════════════════════════════════════════════════ */}
-      <section className="py-16 bg-gray-50 dark:bg-gray-950">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-10">
-            <div className="inline-flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-semibold px-3 py-1.5 rounded-full mb-3">
-              <Award className="w-3.5 h-3.5" /> Trusted by 10 Lakh+ Job Seekers
-            </div>
-            <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white mb-2">What Our Users Say</h2>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">Real stories from real people who found their dream jobs on Recruweb</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {TESTIMONIALS.map(({ name, role, location, avatar, color, rating, text }) => (
-              <div key={name} className="card-hover bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl p-5 flex flex-col">
-                <div className="flex items-start gap-1 mb-3">
-                  <Quote className="w-5 h-5 opacity-20 shrink-0" style={{ color }} />
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed flex-1 mb-4">"{text}"</p>
-                <div className="flex items-center gap-1 mb-3">
-                  {Array.from({ length: rating }).map((_, i) => (
-                    <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  ))}
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs shrink-0"
-                    style={{ background: `linear-gradient(135deg,${color},${color}aa)` }}>
-                    {avatar}
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-gray-900 dark:text-white">{name}</div>
-                    <div className="text-[11px] text-gray-400">{role}</div>
-                    <div className="flex items-center gap-1 text-[10px] text-gray-400">
-                      <MapPin className="w-2.5 h-2.5" />{location}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <TestimonialsCarousel />
 
       {/* ══════════════════════════════════════════════════
           INTERVIEW PREP
