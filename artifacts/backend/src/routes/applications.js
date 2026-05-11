@@ -9,7 +9,15 @@ const router = Router();
 
 // POST /api/applications — candidate only
 router.post("/", protect, requireRole("candidate"), async (req, res) => {
-  const { jobId, coverLetter } = req.body;
+  const {
+    jobId, coverLetter,
+    fullName, mobile, email, address,
+    positionApplied, preferredLocation, expectedSalary, joiningAvailability,
+    highestQualification, collegeName, passingYear,
+    totalExperience, currentCompany, currentSalary,
+    skills, resumeAttached,
+  } = req.body;
+
   if (!jobId) return res.status(400).json({ message: "jobId required" });
 
   const job = await Job.findById(jobId);
@@ -18,7 +26,15 @@ router.post("/", protect, requireRole("candidate"), async (req, res) => {
   const existing = await Application.findOne({ jobId, candidateId: req.user._id });
   if (existing) return res.status(400).json({ message: "Already applied to this job" });
 
-  const application = await Application.create({ jobId, candidateId: req.user._id, coverLetter });
+  const application = await Application.create({
+    jobId, candidateId: req.user._id, coverLetter,
+    fullName, mobile, email, address,
+    positionApplied, preferredLocation, expectedSalary, joiningAvailability,
+    highestQualification, collegeName, passingYear,
+    totalExperience, currentCompany, currentSalary,
+    skills: Array.isArray(skills) ? skills : (skills ? skills.split(",").map(s => s.trim()).filter(Boolean) : []),
+    resumeAttached: !!resumeAttached,
+  });
   await Job.findByIdAndUpdate(jobId, { $inc: { applicantCount: 1 } });
   res.status(201).json(application.toJSON());
 });

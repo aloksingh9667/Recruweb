@@ -33,14 +33,14 @@ const TOP_COMPANIES = [
 ];
 
 const POPULAR_ROLES = [
-  { title: "Full Stack Developer", count: "15.2k", icon: Code, color: "#6366f1" },
-  { title: "Front End Developer", count: "12.1k", icon: Palette, color: "#8b5cf6" },
-  { title: "Data Scientist", count: "11.3k", icon: BarChart2, color: "#3b82f6" },
-  { title: "Mobile / App Dev", count: "8.4k", icon: Briefcase, color: "#06b6d4" },
-  { title: "DevOps Engineer", count: "6.8k", icon: Wrench, color: "#10b981" },
-  { title: "Product Manager", count: "5.6k", icon: ShieldCheck, color: "#f59e0b" },
-  { title: "Technical Lead", count: "9.7k", icon: TrendingUp, color: "#ef4444" },
-  { title: "Engineering Manager", count: "3.2k", icon: Users, color: "#ec4899" },
+  { title: "Full Stack Developer", countKey: "Full Stack Developer", icon: Code, color: "#6366f1" },
+  { title: "Front End Developer", countKey: "Front End Developer", icon: Palette, color: "#8b5cf6" },
+  { title: "Data Scientist", countKey: "Data Scientist", icon: BarChart2, color: "#3b82f6" },
+  { title: "Mobile / App Dev", countKey: "Mobile", icon: Briefcase, color: "#06b6d4" },
+  { title: "DevOps Engineer", countKey: "DevOps Engineer", icon: Wrench, color: "#10b981" },
+  { title: "Product Manager", countKey: "Product Manager", icon: ShieldCheck, color: "#f59e0b" },
+  { title: "Technical Lead", countKey: "Technical Lead", icon: TrendingUp, color: "#ef4444" },
+  { title: "Engineering Manager", countKey: "Engineering Manager", icon: Users, color: "#ec4899" },
 ];
 
 const INTERVIEW_COMPANIES = [
@@ -148,6 +148,12 @@ export default function Home() {
     queryFn: () => fetchApi("/jobs?limit=8"),
   });
   const liveJobs = liveJobsData?.jobs ?? [];
+
+  const { data: roleCounts } = useQuery({
+    queryKey: ["roleCounts"],
+    queryFn: () => fetchApi("/jobs/role-counts"),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const handleSearch = (e) => {
     e?.preventDefault();
@@ -474,7 +480,12 @@ export default function Home() {
 
           {/* Role Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-            {POPULAR_ROLES.map(({ title, count, icon: Icon, color }, idx) => (
+            {POPULAR_ROLES.map(({ title, countKey, icon: Icon, color }, idx) => {
+              const liveCount = roleCounts?.[countKey];
+              const displayCount = liveCount != null
+                ? (liveCount >= 1000 ? (liveCount / 1000).toFixed(1) + "k" : liveCount.toString())
+                : "—";
+              return (
               <Link key={title} href={`/jobs?search=${encodeURIComponent(title)}`}>
                 <div
                   className="group relative overflow-hidden rounded-2xl cursor-pointer h-full"
@@ -520,7 +531,7 @@ export default function Home() {
                         {title}
                       </h3>
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-xl sm:text-2xl font-extrabold" style={{ color }}>{count}</span>
+                        <span className="text-xl sm:text-2xl font-extrabold" style={{ color }}>{displayCount}</span>
                         <span className="text-xs text-gray-500 font-medium">open jobs</span>
                       </div>
                     </div>
@@ -535,7 +546,8 @@ export default function Home() {
                   </div>
                 </div>
               </Link>
-            ))}
+              );
+            })}
           </div>
 
           {/* Bottom CTA */}

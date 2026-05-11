@@ -30,8 +30,15 @@ export default function JobDetail() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [coverLetter, setCoverLetter] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [form, setForm] = useState({
+    fullName: "", mobile: "", email: "", address: "",
+    positionApplied: "", preferredLocation: "", expectedSalary: "", joiningAvailability: "",
+    highestQualification: "", collegeName: "", passingYear: "",
+    totalExperience: "", currentCompany: "", currentSalary: "",
+    skills: "", coverLetter: "", resumeAttached: false,
+  });
+  const setField = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const { data: job, isLoading } = useQuery({
     queryKey: ["job", jobId],
@@ -65,6 +72,14 @@ export default function JobDetail() {
     },
     onError: (err) => toast({ title: "Failed", description: err.message, variant: "destructive" }),
   });
+
+  const handleApplySubmit = () => {
+    applyMutation.mutate({
+      jobId,
+      ...form,
+      skills: form.skills.split(",").map(s => s.trim()).filter(Boolean),
+    });
+  };
 
   const saveMutation = useMutation({
     mutationFn: () => isSaved
@@ -194,35 +209,152 @@ export default function JobDetail() {
                         <Send className="w-4 h-4" /> Apply now
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-lg">
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>Apply for {job.title}</DialogTitle>
                         <DialogDescription>at {companyName} · {job.location}</DialogDescription>
                       </DialogHeader>
-                      <div className="space-y-4 mt-2">
+                      <div className="mt-3 space-y-5">
+                        {/* Personal Details */}
                         <div>
-                          <label className="text-sm font-medium mb-1.5 block">Cover Letter <span className="text-muted-foreground font-normal">(Optional)</span></label>
+                          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 pb-1 border-b">Personal Details</h3>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {[
+                              { label: "Full Name *", key: "fullName", placeholder: "Your full name" },
+                              { label: "Mobile Number *", key: "mobile", placeholder: "+91 XXXXX XXXXX" },
+                              { label: "Email *", key: "email", placeholder: "you@email.com" },
+                              { label: "Address", key: "address", placeholder: "City, State" },
+                            ].map(({ label, key, placeholder }) => (
+                              <div key={key}>
+                                <label className="text-xs font-semibold text-foreground mb-1 block">{label}</label>
+                                <input
+                                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
+                                  placeholder={placeholder}
+                                  value={form[key]}
+                                  onChange={e => setField(key, e.target.value)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Job Preferences */}
+                        <div>
+                          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 pb-1 border-b">Job Preferences</h3>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {[
+                              { label: "Position Applied For", key: "positionApplied", placeholder: job.title },
+                              { label: "Preferred Location", key: "preferredLocation", placeholder: "e.g. Noida, Delhi" },
+                              { label: "Expected Salary", key: "expectedSalary", placeholder: "e.g. ₹8 LPA" },
+                              { label: "Joining Availability", key: "joiningAvailability", placeholder: "e.g. Immediate / 30 days" },
+                            ].map(({ label, key, placeholder }) => (
+                              <div key={key}>
+                                <label className="text-xs font-semibold text-foreground mb-1 block">{label}</label>
+                                <input
+                                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
+                                  placeholder={placeholder}
+                                  value={form[key]}
+                                  onChange={e => setField(key, e.target.value)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Education */}
+                        <div>
+                          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 pb-1 border-b">Education</h3>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {[
+                              { label: "Highest Qualification", key: "highestQualification", placeholder: "e.g. B.Tech, MBA" },
+                              { label: "College Name", key: "collegeName", placeholder: "College / University" },
+                              { label: "Passing Year", key: "passingYear", placeholder: "e.g. 2022" },
+                            ].map(({ label, key, placeholder }) => (
+                              <div key={key}>
+                                <label className="text-xs font-semibold text-foreground mb-1 block">{label}</label>
+                                <input
+                                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
+                                  placeholder={placeholder}
+                                  value={form[key]}
+                                  onChange={e => setField(key, e.target.value)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Experience */}
+                        <div>
+                          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 pb-1 border-b">Experience</h3>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            {[
+                              { label: "Total Experience", key: "totalExperience", placeholder: "e.g. 3 years" },
+                              { label: "Current Company", key: "currentCompany", placeholder: "Company name / Fresher" },
+                              { label: "Current Salary", key: "currentSalary", placeholder: "e.g. ₹5 LPA" },
+                            ].map(({ label, key, placeholder }) => (
+                              <div key={key}>
+                                <label className="text-xs font-semibold text-foreground mb-1 block">{label}</label>
+                                <input
+                                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
+                                  placeholder={placeholder}
+                                  value={form[key]}
+                                  onChange={e => setField(key, e.target.value)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Skills & Resume */}
+                        <div>
+                          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 pb-1 border-b">Skills & Resume</h3>
+                          <div className="space-y-3">
+                            <div>
+                              <label className="text-xs font-semibold text-foreground mb-1 block">Skills <span className="text-muted-foreground font-normal">(comma separated)</span></label>
+                              <input
+                                className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm outline-none focus:border-primary transition-colors"
+                                placeholder="e.g. React, Node.js, Python"
+                                value={form.skills}
+                                onChange={e => setField("skills", e.target.value)}
+                              />
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                id="resumeAttached"
+                                checked={form.resumeAttached}
+                                onChange={e => setField("resumeAttached", e.target.checked)}
+                                className="w-4 h-4 accent-primary"
+                              />
+                              <label htmlFor="resumeAttached" className="text-sm font-medium cursor-pointer">
+                                Resume Attached <span className="text-muted-foreground font-normal">(I have uploaded my resume to my profile)</span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Cover Letter */}
+                        <div>
+                          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 pb-1 border-b">Cover Letter <span className="font-normal normal-case">(Optional)</span></h3>
                           <Textarea
                             placeholder="Why are you a great fit for this role? Highlight your most relevant experience..."
-                            value={coverLetter}
-                            onChange={e => setCoverLetter(e.target.value)}
-                            rows={5}
+                            value={form.coverLetter}
+                            onChange={e => setField("coverLetter", e.target.value)}
+                            rows={4}
                             className="resize-none"
                           />
                         </div>
-                        {job.screeningQuestions?.filter(Boolean).map((q, i) => (
-                          <div key={i}>
-                            <label className="text-sm font-medium mb-1.5 block">Q{i + 1}: {q}</label>
-                            <Textarea placeholder="Your answer..." rows={2} className="resize-none" />
-                          </div>
-                        ))}
+
                         <Button
-                          onClick={() => applyMutation.mutate({ jobId, coverLetter })}
-                          disabled={applyMutation.isPending}
+                          onClick={handleApplySubmit}
+                          disabled={applyMutation.isPending || !form.fullName || !form.mobile || !form.email}
                           className="w-full font-semibold"
                         >
                           {applyMutation.isPending ? "Submitting..." : "Submit Application"}
                         </Button>
+                        {(!form.fullName || !form.mobile || !form.email) && (
+                          <p className="text-xs text-muted-foreground text-center">* Full Name, Mobile and Email are required</p>
+                        )}
                       </div>
                     </DialogContent>
                   </Dialog>

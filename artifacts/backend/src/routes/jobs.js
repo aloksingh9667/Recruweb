@@ -42,6 +42,28 @@ router.get("/", async (req, res) => {
   });
 });
 
+// GET /api/jobs/role-counts — public, returns live counts per search keyword
+router.get("/role-counts", async (req, res) => {
+  const roles = [
+    "Full Stack Developer", "Front End Developer", "Data Scientist",
+    "Mobile", "DevOps Engineer", "Product Manager", "Technical Lead", "Engineering Manager",
+  ];
+  const counts = await Promise.all(
+    roles.map(role =>
+      Job.countDocuments({
+        isActive: true,
+        $or: [
+          { title: { $regex: role, $options: "i" } },
+          { description: { $regex: role, $options: "i" } },
+        ],
+      })
+    )
+  );
+  const result = {};
+  roles.forEach((r, i) => { result[r] = counts[i]; });
+  res.json(result);
+});
+
 // GET /api/jobs/stats/summary — public
 router.get("/stats/summary", async (req, res) => {
   const [totalJobs, byCategory, byType, recentJobs] = await Promise.all([

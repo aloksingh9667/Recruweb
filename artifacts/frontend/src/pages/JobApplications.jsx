@@ -363,7 +363,9 @@ export default function JobApplications() {
       <Dialog open={!!selectedApp} onOpenChange={(open) => !open && setSelectedApp(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl">{selectedApp?.candidate?.user?.name || selectedApp?.candidate?.name || "Candidate Profile"}</DialogTitle>
+            <DialogTitle className="text-xl">
+              {selectedApp?.fullName || selectedApp?.candidate?.user?.name || selectedApp?.candidate?.name || "Candidate Profile"}
+            </DialogTitle>
           </DialogHeader>
 
           {selectedApp && (
@@ -381,76 +383,134 @@ export default function JobApplications() {
                 </div>
               )}
 
-              <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1.5 bg-muted/50 px-3 py-1.5 rounded-md">
-                  <Mail className="h-3.5 w-3.5" /> {selectedApp.candidate?.user?.email || selectedApp.candidate?.email}
+              {/* ── Personal Details ── */}
+              <div>
+                <h4 className="font-bold text-xs text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b">Personal Details</h4>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                  {[
+                    ["Full Name", selectedApp.fullName || selectedApp.candidate?.user?.name || selectedApp.candidate?.name],
+                    ["Mobile", selectedApp.mobile || selectedApp.candidate?.phone],
+                    ["Email", selectedApp.email || selectedApp.candidate?.user?.email || selectedApp.candidate?.email],
+                    ["Address", selectedApp.address || selectedApp.candidate?.location],
+                  ].map(([label, val]) => val ? (
+                    <div key={label}>
+                      <span className="text-muted-foreground text-xs">{label}</span>
+                      <p className="font-medium">{val}</p>
+                    </div>
+                  ) : null)}
                 </div>
-                {selectedApp.candidate?.phone && (
-                  <div className="flex items-center gap-1.5 bg-muted/50 px-3 py-1.5 rounded-md">
-                    <Phone className="h-3.5 w-3.5" /> {selectedApp.candidate.phone}
-                  </div>
-                )}
-                {selectedApp.candidate?.location && (
-                  <div className="flex items-center gap-1.5 bg-muted/50 px-3 py-1.5 rounded-md">
-                    <MapPin className="h-3.5 w-3.5" /> {selectedApp.candidate.location}
-                  </div>
-                )}
               </div>
 
-              {selectedApp.candidate?.currentTitle && (
+              {/* ── Job Preferences ── */}
+              {(selectedApp.positionApplied || selectedApp.preferredLocation || selectedApp.expectedSalary || selectedApp.joiningAvailability) && (
                 <div>
-                  <h4 className="font-semibold text-xs text-muted-foreground mb-1 uppercase tracking-wide">Current Title</h4>
-                  <p className="font-medium">{selectedApp.candidate.currentTitle}</p>
+                  <h4 className="font-bold text-xs text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b">Job Preferences</h4>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                    {[
+                      ["Position Applied For", selectedApp.positionApplied],
+                      ["Preferred Location", selectedApp.preferredLocation],
+                      ["Expected Salary", selectedApp.expectedSalary],
+                      ["Joining Availability", selectedApp.joiningAvailability],
+                    ].map(([label, val]) => val ? (
+                      <div key={label}>
+                        <span className="text-muted-foreground text-xs">{label}</span>
+                        <p className="font-medium">{val}</p>
+                      </div>
+                    ) : null)}
+                  </div>
                 </div>
               )}
 
-              {selectedApp.coverLetter && (
+              {/* ── Education ── */}
+              {(selectedApp.highestQualification || selectedApp.collegeName || selectedApp.passingYear || selectedApp.candidate?.education) && (
                 <div>
-                  <h4 className="font-semibold text-xs text-muted-foreground mb-1.5 uppercase tracking-wide border-b pb-1">Cover Letter</h4>
-                  <div className="bg-muted/30 p-3 rounded-lg text-sm whitespace-pre-wrap leading-relaxed">{selectedApp.coverLetter}</div>
+                  <h4 className="font-bold text-xs text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b">Education</h4>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                    {[
+                      ["Highest Qualification", selectedApp.highestQualification],
+                      ["College / University", selectedApp.collegeName],
+                      ["Passing Year", selectedApp.passingYear],
+                    ].map(([label, val]) => val ? (
+                      <div key={label}>
+                        <span className="text-muted-foreground text-xs">{label}</span>
+                        <p className="font-medium">{val}</p>
+                      </div>
+                    ) : null)}
+                  </div>
+                  {selectedApp.candidate?.education && !selectedApp.highestQualification && (
+                    <p className="text-sm mt-1 whitespace-pre-wrap">{selectedApp.candidate.education}</p>
+                  )}
                 </div>
               )}
 
-              {selectedApp.candidate?.bio && (
+              {/* ── Experience ── */}
+              {(selectedApp.totalExperience || selectedApp.currentCompany || selectedApp.currentSalary || selectedApp.candidate?.experience) && (
                 <div>
-                  <h4 className="font-semibold text-xs text-muted-foreground mb-1.5 uppercase tracking-wide border-b pb-1">Professional Summary</h4>
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{selectedApp.candidate.bio}</p>
+                  <h4 className="font-bold text-xs text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b">Experience</h4>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                    {[
+                      ["Total Experience", selectedApp.totalExperience],
+                      ["Current Company", selectedApp.currentCompany],
+                      ["Current Salary", selectedApp.currentSalary],
+                    ].map(([label, val]) => val ? (
+                      <div key={label}>
+                        <span className="text-muted-foreground text-xs">{label}</span>
+                        <p className="font-medium">{val}</p>
+                      </div>
+                    ) : null)}
+                  </div>
+                  {selectedApp.candidate?.experience && !selectedApp.totalExperience && (
+                    <p className="text-sm mt-1 whitespace-pre-wrap">{selectedApp.candidate.experience}</p>
+                  )}
                 </div>
               )}
 
-              {selectedApp.candidate?.experience && (
+              {/* ── Skills ── */}
+              {((selectedApp.skills?.length > 0) || (selectedApp.candidate?.skills?.length > 0)) && (
                 <div>
-                  <h4 className="font-semibold text-xs text-muted-foreground mb-1.5 uppercase tracking-wide border-b pb-1">Experience</h4>
-                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{selectedApp.candidate.experience}</p>
-                </div>
-              )}
-
-              {selectedApp.candidate?.education && (
-                <div>
-                  <h4 className="font-semibold text-xs text-muted-foreground mb-1.5 uppercase tracking-wide border-b pb-1">Education</h4>
-                  <p className="text-sm whitespace-pre-wrap">{selectedApp.candidate.education}</p>
-                </div>
-              )}
-
-              {selectedApp.candidate?.skills?.length > 0 && (
-                <div>
-                  <h4 className="font-semibold text-xs text-muted-foreground mb-2 uppercase tracking-wide border-b pb-1">Skills</h4>
+                  <h4 className="font-bold text-xs text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b">Skills</h4>
                   <div className="flex flex-wrap gap-1.5">
-                    {selectedApp.candidate.skills.map((s, i) => (
+                    {(selectedApp.skills?.length > 0 ? selectedApp.skills : selectedApp.candidate?.skills || []).map((s, i) => (
                       <Badge key={i} variant="secondary" className="text-xs">{s}</Badge>
                     ))}
                   </div>
                 </div>
               )}
 
+              {/* ── Resume ── */}
+              <div>
+                <h4 className="font-bold text-xs text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b">Resume</h4>
+                <div className="flex items-center gap-3">
+                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${selectedApp.resumeAttached ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                    Resume Attached: {selectedApp.resumeAttached ? "Yes" : "No"}
+                  </span>
+                  {selectedApp.candidate?.resumeUrl && (
+                    <a href={selectedApp.candidate.resumeUrl} target="_blank" rel="noreferrer">
+                      <Button size="sm" className="gap-1.5 h-7 text-xs"><Download className="h-3 w-3" /> Download Resume</Button>
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* ── Cover Letter ── */}
+              {selectedApp.coverLetter && (
+                <div>
+                  <h4 className="font-bold text-xs text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b">Cover Letter</h4>
+                  <div className="bg-muted/30 p-3 rounded-lg text-sm whitespace-pre-wrap leading-relaxed">{selectedApp.coverLetter}</div>
+                </div>
+              )}
+
+              {/* ── Profile Bio (fallback) ── */}
+              {selectedApp.candidate?.bio && (
+                <div>
+                  <h4 className="font-bold text-xs text-muted-foreground uppercase tracking-widest mb-2 pb-1 border-b">Professional Summary</h4>
+                  <p className="text-sm whitespace-pre-wrap leading-relaxed">{selectedApp.candidate.bio}</p>
+                </div>
+              )}
+
+              {/* ── Status Change ── */}
               <div className="pt-3 flex justify-between items-center border-t">
-                {selectedApp.candidate?.resumeUrl ? (
-                  <a href={selectedApp.candidate.resumeUrl} target="_blank" rel="noreferrer">
-                    <Button size="sm" className="gap-1.5"><Download className="h-3.5 w-3.5" /> Download Resume</Button>
-                  </a>
-                ) : (
-                  <span className="text-muted-foreground text-sm italic">No resume provided</span>
-                )}
+                <p className="text-xs text-muted-foreground">Update application status</p>
                 <Select
                   defaultValue={selectedApp.status}
                   onValueChange={(val) => {
@@ -458,7 +518,7 @@ export default function JobApplications() {
                     setSelectedApp(s => ({ ...s, status: val }));
                   }}
                 >
-                  <SelectTrigger className={`w-[148px] text-xs ${STATUS_COLORS[selectedApp.status] || STATUS_COLORS.pending} border`}>
+                  <SelectTrigger className={`w-[160px] text-xs ${STATUS_COLORS[selectedApp.status] || STATUS_COLORS.pending} border`}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
