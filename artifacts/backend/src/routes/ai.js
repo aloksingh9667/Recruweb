@@ -176,19 +176,59 @@ Job: ${jobDescription.slice(0, 1200)}`, 512);
 });
 
 // POST /api/ai/interview-prep
-router.post("/interview-prep", protect, async (req, res) => {
-  const { company, role, type = "technical" } = req.body;
-  if (!company || !role) return res.status(400).json({ message: "Company and role required" });
+router.post("/interview-prep", async (req, res) => {
+  const { jobTitle, jobDescription, count = 10, company } = req.body;
+  if (!jobTitle) return res.status(400).json({ message: "Job title required" });
 
-  const raw = await gemini(`Generate ${type} interview prep for ${role} at ${company}. Return ONLY valid JSON:
-{"questions":[{"question":"...","answer":"...","difficulty":"easy|medium|hard"}],"tips":["...","...","..."],"companyInsights":"<2-3 sentences>"}
-Include 5 questions.`, 1000);
+  const n = Math.min(Math.max(parseInt(count) || 10, 3), 20);
+  const companyCtx = company ? ` at ${company}` : "";
+  const descCtx = jobDescription ? `\n\nJob Description:\n${jobDescription.slice(0, 1500)}` : "";
 
-  res.json(parseJSON(raw, {
-    questions: [{ question: `Tell me about yourself and why ${company}?`, answer: "Structure around experience, skills, and fit.", difficulty: "easy" }],
-    tips: ["Research the company", "Practice problem-solving", "Prepare questions to ask"],
-    companyInsights: `${company} values innovation and teamwork. Expect technical + HR rounds.`,
-  }));
+  const prompt = `You are a senior HR and technical interview expert. Generate exactly ${n} realistic, high-quality interview questions for a "${jobTitle}"${companyCtx} role.${descCtx}
+
+Mix question types: behavioral, technical, and situational. Vary difficulty across easy, medium, and hard.
+
+Return ONLY valid JSON — no markdown, no explanation:
+{
+  "questions": [
+    {
+      "question": "<full interview question>",
+      "type": "<behavioral|technical|situational>",
+      "difficulty": "<easy|medium|hard>",
+      "answer": "<detailed ideal answer in 3-5 sentences using STAR method where applicable>",
+      "tip": "<one-line coaching tip for answering this question>"
+    }
+  ],
+  "tips": ["<interview tip 1>", "<interview tip 2>", "<interview tip 3>", "<interview tip 4>"],
+  "overview": "<2-3 sentence overview of what to expect in a ${jobTitle} interview>"
+}
+
+Rules:
+- Generate exactly ${n} questions
+- Mix: ~40% technical, ~40% behavioral, ~20% situational
+- Make answers detailed and actionable, not generic
+- Tips should be practical and specific to the role`;
+
+  const raw = await gemini(prompt, 3000);
+
+  const fallback = {
+    questions: Array.from({ length: n }, (_, i) => ({
+      question: `Question ${i + 1}: Tell us about your experience relevant to this ${jobTitle} role.`,
+      type: i % 3 === 0 ? "behavioral" : i % 3 === 1 ? "technical" : "situational",
+      difficulty: i % 3 === 0 ? "easy" : i % 3 === 1 ? "medium" : "hard",
+      answer: "Structure your answer using the STAR method: Situation, Task, Action, Result.",
+      tip: "Take a moment to think before answering.",
+    })),
+    tips: [
+      "Research the company thoroughly before the interview",
+      "Prepare 2-3 concrete examples from your past experience",
+      "Ask thoughtful questions at the end of each round",
+      "Practice your answers out loud to build confidence",
+    ],
+    overview: `${jobTitle} interviews typically include a mix of technical and behavioral rounds. Prepare concrete examples using the STAR method.`,
+  };
+
+  res.json(parseJSON(raw, fallback));
 });
 
 export default router;
