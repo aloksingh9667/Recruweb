@@ -8,6 +8,7 @@ import {
   Briefcase, Bookmark, BookmarkCheck, MapPin, IndianRupee,
   Clock, Building2, ExternalLink, Trash2, Send, Star,
   CheckCircle2, AlertCircle, Eye, LayoutDashboard, TrendingUp,
+  Sparkles, Target, ChevronDown, ChevronUp, Info,
 } from "lucide-react";
 
 /* ── Status config ── */
@@ -110,6 +111,159 @@ function AppCard({ app }) {
   );
 }
 
+/* ── Match Score Ring (SVG arc) ── */
+function ScoreRing({ score }) {
+  const r = 26, circ = 2 * Math.PI * r;
+  const fill = circ - (score / 100) * circ;
+  const color = score >= 70 ? "#16a34a" : score >= 40 ? "#d97706" : "#dc2626";
+  const bg    = score >= 70 ? "#dcfce7" : score >= 40 ? "#fef3c7" : "#fee2e2";
+  const label = score >= 70 ? "Strong" : score >= 40 ? "Moderate" : "Weak";
+
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <svg width="64" height="64" className="-rotate-90">
+        <circle cx="32" cy="32" r={r} fill="none" stroke="#e5e7eb" strokeWidth="5" />
+        <circle cx="32" cy="32" r={r} fill="none" stroke={color} strokeWidth="5"
+          strokeDasharray={circ} strokeDashoffset={fill}
+          strokeLinecap="round" style={{ transition: "stroke-dashoffset 0.8s ease" }} />
+      </svg>
+      <span className="text-lg font-black -mt-12" style={{ color }}>{score}</span>
+      <span className="text-[10px] font-bold mt-5 px-2 py-0.5 rounded-full" style={{ color, background: bg }}>{label}</span>
+    </div>
+  );
+}
+
+/* ── Match Score Panel (on-demand, cached 30 min) ── */
+function MatchScorePanel({ jobId }) {
+  const [open, setOpen] = useState(false);
+
+  const { data, isFetching, isError, refetch, isFetched } = useQuery({
+    queryKey: ["matchScore", jobId],
+    queryFn: () => fetchApi("/ai/match-score", {
+      method: "POST",
+      body: JSON.stringify({ jobId }),
+    }),
+    enabled: false,          // only fires when refetch() is called
+    staleTime: 30 * 60 * 1000, // cache 30 min client-side
+    retry: 1,
+  });
+
+  const handleCheck = () => {
+    if (!isFetched) refetch();
+    setOpen(true);
+  };
+
+  return (
+    <div className="mt-3">
+      {/* Trigger button */}
+      {!open && (
+        <button
+          onClick={handleCheck}
+          disabled={isFetching}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-violet-200 dark:border-violet-800 text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition-colors"
+        >
+          {isFetching ? (
+            <span className="w-3 h-3 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Target className="w-3 h-3" />
+          )}
+          {isFetching ? "Analysing…" : "Check Match"}
+          <Sparkles className="w-3 h-3" />
+        </button>
+      )}
+
+      {/* Result panel */}
+      {open && (
+        <div className="mt-2 rounded-xl border border-violet-200 dark:border-violet-800/60 overflow-hidden"
+          style={{ background: "linear-gradient(135deg,#f5f3ff 0%,#ede9fe 100%)" }}>
+
+          {/* Header row */}
+          <div className="flex items-center justify-between px-3 py-2 cursor-pointer select-none"
+            onClick={() => setOpen(false)}
+            style={{ background: "rgba(139,92,246,0.07)" }}>
+            <span className="text-xs font-bold text-violet-700 dark:text-violet-300 flex items-center gap-1.5">
+              <Target className="w-3.5 h-3.5" /> AI Match Score
+              {data?.cached && (
+                <span className="text-[9px] font-medium text-violet-400 border border-violet-200 rounded-full px-1.5 py-px">cached</span>
+              )}
+            </span>
+            <ChevronUp className="w-3.5 h-3.5 text-violet-400" />
+          </div>
+
+          {isFetching ? (
+            <div className="px-4 py-6 flex flex-col items-center gap-2">
+              <div className="w-8 h-8 border-3 border-violet-300 border-t-violet-600 rounded-full animate-spin" />
+              <p className="text-xs text-violet-500">Gemini is analysing your profile…</p>
+            </div>
+          ) : isError ? (
+            <div className="px-4 py-3 flex items-center gap-2 text-xs text-red-500">
+              <AlertCircle className="w-4 h-4" />
+              Could not fetch score. Try again shortly.
+              <button onClick={() => refetch()} className="underline font-semibold">Retry</button>
+            </div>
+          ) : data ? (
+            <div className="p-3 flex gap-3 flex-wrap sm:flex-nowrap">
+              {/* Score ring */}
+              <div className="shrink-0 flex flex-col items-center justify-center min-w-[72px]">
+                <ScoreRing score={data.score} />
+              </div>
+
+              {/* Details */}
+              <div className="flex-1 min-w-0 space-y-2">
+                {/* Verdict */}
+                {data.verdict && (
+                  <p className="text-[11px] font-semibold text-violet-800 dark:text-violet-300 italic">
+                    "{data.verdict}"
+                  </p>
+                )}
+                {/* Strengths */}
+                {data.strengths?.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider mb-1">Strengths</p>
+                    <div className="flex flex-wrap gap-1">
+                      {data.strengths.map((s, i) => (
+                        <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/40">
+                          ✓ {s}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Gaps */}
+                {data.gaps?.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-bold text-red-500 uppercase tracking-wider mb-1">Gaps to bridge</p>
+                    <div className="flex flex-wrap gap-1">
+                      {data.gaps.map((g, i) => (
+                        <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/40">
+                          ✗ {g}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {/* Tip */}
+                <p className="text-[9px] text-violet-400 flex items-center gap-1 pt-0.5">
+                  <Info className="w-2.5 h-2.5 shrink-0" />
+                  Based on your profile · Update profile for better accuracy · Cached 30 min
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {/* Re-open collapsed panel */}
+      {!open && isFetched && data && (
+        <button onClick={() => setOpen(true)}
+          className="mt-1 text-[10px] text-violet-500 hover:underline flex items-center gap-1">
+          <ChevronDown className="w-3 h-3" /> Show match result
+        </button>
+      )}
+    </div>
+  );
+}
+
 /* ── Saved Job Card ── */
 function SavedCard({ job, onUnsave, onApply, hasApplied }) {
   const jobId = job._id || job.id;
@@ -199,6 +353,9 @@ function SavedCard({ job, onUnsave, onApply, hasApplied }) {
             </button>
           </Link>
         </div>
+
+        {/* Match Score Panel */}
+        <MatchScorePanel jobId={jobId} />
       </div>
     </div>
   );

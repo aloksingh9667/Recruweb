@@ -231,6 +231,67 @@ Rules:
   res.json(parseJSON(raw, fallback));
 });
 
+// ── Simple in-memory cache (avoids re-hitting Gemini for same job+candidate) ──
+const matchCache = new Map();
+const MATCH_TTL = 15 * 60 * 1000; // 15 minutes
+
+// POST /api/ai/match-score  (protected — candidate only)
+router.post("/match-score", protect, requireRole("candidate"), async (req, res) => {
+  const { jobId } = req.body;
+  if (!jobId) return res.status(400).json({ message: "jobId required" });
+
+  const userId = req.user.id || req.user._id;
+  const cacheKey = `${userId}:${jobId}`;
+
+  // Return cached result if fresh
+  const cached = matchCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < MATCH_TTL) {
+    return res.json({ ...cached.data, cached: true });
+  }
+
+  // Fetch job and candidate profile in parallel
+  const [Job, CandidateProfile] = await Promise.all([
+    import("../models/Job.js").then(m => m.default),
+    import("../models/CandidateProfile.js").then(m => m.default),
+  ]);
+
+  const [job, profile] = await Promise.all([
+    Job.findById(jobId).select("title skills experienceRequired category requirements").lean(),
+    CandidateProfile.findOne({ userId }).select("skills experience currentTitle education").lean(),
+  ]);
+
+  if (!job) return res.status(404).json({ message: "Job not found" });
+
+  // Build ultra-short prompt to minimise tokens
+  const jobSkills   = (job.skills || []).slice(0, 8).join(", ") || "not specified";
+  const candSkills  = (profile?.skills || []).slice(0, 10).join(", ") || "not specified";
+  const candExp     = profile?.experience || "fresher";
+  const candTitle   = profile?.currentTitle || "candidate";
+  const jobExp      = job.experienceRequired || "any";
+
+  const prompt =
+    `Job title: "${job.title}". Required skills: ${jobSkills}. Exp needed: ${jobExp}.\n` +
+    `Candidate skills: ${candSkills}. Candidate exp: ${candExp}. Current title: ${candTitle}.\n` +
+    `Give match score 0-100 and brief analysis. Return ONLY JSON, no markdown:\n` +
+    `{"score":N,"strengths":["max 10 words","max 10 words"],"gaps":["max 10 words","max 10 words"],"verdict":"max 12 words"}`;
+
+  const fallback = {
+    score: 55,
+    strengths: ["Some relevant skills match the role", "Experience level is appropriate"],
+    gaps: ["Complete your profile for accurate scoring", "Add more skills to improve match"],
+    verdict: "Update your profile to get a precise score",
+  };
+
+  const raw = await gemini(prompt, 150);
+  const data = parseJSON(raw, fallback);
+
+  // Clamp score to 0–100
+  if (typeof data.score === "number") data.score = Math.max(0, Math.min(100, data.score));
+
+  matchCache.set(cacheKey, { ts: Date.now(), data });
+  res.json(data);
+});
+
 // POST /api/ai/resume-tips-by-role
 router.post("/resume-tips-by-role", async (req, res) => {
   const { category } = req.body;
