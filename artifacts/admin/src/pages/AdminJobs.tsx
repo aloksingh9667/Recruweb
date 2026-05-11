@@ -10,10 +10,11 @@ import {
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useDebounce } from "@/hooks/useDebounce";
 import {
   Search, CheckCircle, XCircle, Trash2, RefreshCw,
   MapPin, Building2, Users, ToggleLeft, ToggleRight,
-  ChevronLeft, ChevronRight, Eye, EyeOff,
+  ChevronLeft, ChevronRight, Eye, EyeOff, X,
 } from "lucide-react";
 
 interface Job {
@@ -58,11 +59,15 @@ export default function AdminJobs() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  const debouncedSearch = useDebounce(search, 400);
+
+  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), limit: "15" });
-      if (search) params.set("search", search);
+      if (debouncedSearch) params.set("search", debouncedSearch);
       if (statusFilter !== "all") params.set("status", statusFilter);
       const data = await fetchAdmin(`/admin/jobs?${params}`);
       setJobs(data.jobs);
@@ -72,7 +77,7 @@ export default function AdminJobs() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter]);
+  }, [page, debouncedSearch, statusFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -139,12 +144,16 @@ export default function AdminJobs() {
             <div className="relative flex-1 min-w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                placeholder="Search title, company or location..."
+                placeholder="Search title, company or location…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") { setPage(1); load(); } }}
                 className="pl-9 rounded-xl border-gray-200"
               />
+              {search && (
+                <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
+                </button>
+              )}
             </div>
             <div className="flex gap-1 bg-gray-100 p-1 rounded-xl flex-wrap">
               {FILTERS.map(f => (

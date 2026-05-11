@@ -4,9 +4,15 @@ import { AdminLayout } from "@/components/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useDebounce } from "@/hooks/useDebounce";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   RefreshCw, FileText, Search, X, ChevronLeft, ChevronRight,
-  User, Briefcase, CalendarDays, ChevronDown, ChevronUp,
+  CalendarDays, ChevronDown, ChevronUp, Trash2,
 } from "lucide-react";
 
 interface Application {
@@ -26,6 +32,8 @@ const STATUS_META: Record<string, { label: string; bg: string; text: string; dot
   hired:       { label: "Hired",       bg: "bg-emerald-50", text: "text-emerald-700", dot: "bg-emerald-500"},
 };
 
+const ALL_STATUSES = ["pending", "reviewed", "shortlisted", "rejected", "hired"];
+
 function StatusBadge({ status }: { status: string }) {
   const m = STATUS_META[status] || { label: status, bg: "bg-gray-50", text: "text-gray-600", dot: "bg-gray-400" };
   return (
@@ -33,6 +41,42 @@ function StatusBadge({ status }: { status: string }) {
       <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
       {m.label}
     </span>
+  );
+}
+
+function StatusSelect({ value, onSave, disabled }: { value: string; onSave: (s: string) => void; disabled: boolean }) {
+  const [local, setLocal] = useState(value);
+  const [saving, setSaving] = useState(false);
+  const changed = local !== value;
+
+  const save = async () => {
+    setSaving(true);
+    await onSave(local);
+    setSaving(false);
+  };
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <select
+        value={local}
+        onChange={e => setLocal(e.target.value)}
+        disabled={disabled || saving}
+        className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-200 disabled:opacity-60 cursor-pointer"
+      >
+        {ALL_STATUSES.map(s => (
+          <option key={s} value={s}>{STATUS_META[s]?.label || s}</option>
+        ))}
+      </select>
+      {changed && (
+        <button
+          onClick={save}
+          disabled={saving}
+          className="text-[11px] px-2 py-1 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-60 transition-colors whitespace-nowrap"
+        >
+          {saving ? "…" : "Save"}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -60,9 +104,9 @@ function CoverLetterCell({ text }: { text?: string }) {
 function SkeletonRow() {
   return (
     <tr className="border-b">
-      {[1,2,3,4,5].map(i => (
+      {[1,2,3,4,5,6].map(i => (
         <td key={i} className="p-3">
-          <div className="h-4 rounded-full bg-gray-100 animate-pulse" style={{ width: `${45 + i * 9}%` }} />
+          <div className="h-4 rounded-full bg-gray-100 animate-pulse" style={{ width: `${45 + i * 7}%` }} />
         </td>
       ))}
     </tr>
@@ -79,12 +123,17 @@ export default function AdminApplications() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const debouncedSearch = useDebounce(search, 400);
+
+  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), limit: "20" });
-      if (search) params.set("search", search);
+      if (debouncedSearch) params.set("search", debouncedSearch);
       if (statusFilter !== "all") params.set("status", statusFilter);
       const data = await fetchAdmin(`/admin/applications?${params}`);
       setApplications(data.applications);
@@ -94,9 +143,39 @@ export default function AdminApplications() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter]);
+  }, [page, debouncedSearch, statusFilter]);
 
   useEffect(() => { load(); }, [load]);
+
+  const updateStatus = async (id: string, status: string) => {
+    setActionLoading(id + "-status");
+    try {
+      const updated = await fetchAdmin(`/admin/applications/${id}/status`, {
+        method: "PUT",
+        body: JSON.stringify({ status }),
+      });
+      setApplications(apps => apps.map(a => a._id === id ? { ...a, status: updated.status } : a));
+      toast({ title: `Status updated to ${STATUS_META[status]?.label || status}` });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const deleteApp = async (id: string) => {
+    setActionLoading(id + "-del");
+    try {
+      await fetchAdmin(`/admin/applications/${id}`, { method: "DELETE" });
+      setApplications(apps => apps.filter(a => a._id !== id));
+      setTotal(t => t - 1);
+      toast({ title: "Application deleted" });
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const totalPages = Math.ceil(total / 20);
 
@@ -115,36 +194,35 @@ export default function AdminApplications() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <div className="flex gap-3 flex-wrap items-center">
-            <div className="relative flex-1 min-w-48">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Search candidate, job or company..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") { setPage(1); load(); } }}
-                className="pl-9 rounded-xl border-gray-200"
-              />
-              {search && (
-                <button onClick={() => { setSearch(""); setPage(1); }} className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
-                </button>
-              )}
-            </div>
-            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl flex-wrap">
-              {STATUS_FILTERS.map(s => (
-                <button
-                  key={s}
-                  onClick={() => { setStatusFilter(s); setPage(1); }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize ${
-                    statusFilter === s ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  {s === "all" ? "All" : STATUS_META[s]?.label || s}
-                </button>
-              ))}
-            </div>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              placeholder="Search candidate name, email, job or company…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-9 rounded-xl border-gray-200"
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2">
+                <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
+              </button>
+            )}
+          </div>
+          <div className="flex gap-1 flex-wrap">
+            {STATUS_FILTERS.map(s => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize ${
+                  statusFilter === s
+                    ? "bg-pink-600 text-white shadow-sm"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                }`}
+              >
+                {s === "all" ? "All" : STATUS_META[s]?.label || s}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -163,6 +241,7 @@ export default function AdminApplications() {
                   <th className="text-left p-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
                   <th className="text-left p-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cover Letter</th>
                   <th className="text-left p-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Applied</th>
+                  <th className="text-right p-3 pr-5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -171,7 +250,7 @@ export default function AdminApplications() {
                   : applications.length === 0
                   ? (
                     <tr>
-                      <td colSpan={5} className="p-16 text-center">
+                      <td colSpan={6} className="p-16 text-center">
                         <FileText className="w-10 h-10 text-gray-200 mx-auto mb-3" />
                         <p className="text-sm text-gray-400">No applications found</p>
                       </td>
@@ -194,7 +273,11 @@ export default function AdminApplications() {
                         <p className="text-xs text-gray-400">{(a.jobId as any)?.company}</p>
                       </td>
                       <td className="p-3">
-                        <StatusBadge status={a.status} />
+                        <StatusSelect
+                          value={a.status}
+                          disabled={!!actionLoading}
+                          onSave={s => updateStatus(a._id, s)}
+                        />
                       </td>
                       <td className="p-3">
                         <CoverLetterCell text={a.coverLetter} />
@@ -204,6 +287,31 @@ export default function AdminApplications() {
                           <CalendarDays className="w-3 h-3" />
                           {new Date(a.createdAt).toLocaleDateString("en-IN")}
                         </div>
+                      </td>
+                      <td className="p-3 pr-5 text-right">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <button
+                              className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 transition-colors disabled:opacity-40"
+                              disabled={!!actionLoading}
+                              title="Delete application"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent className="rounded-2xl">
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete application?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Permanently remove <strong>{(a.candidateId as any)?.name}'s</strong> application for <strong>{(a.jobId as any)?.title}</strong>?
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => deleteApp(a._id)} className="bg-destructive rounded-xl">Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </td>
                     </tr>
                   ))

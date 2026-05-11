@@ -4,7 +4,7 @@ import { AdminLayout } from "@/components/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { Users, Briefcase, FileText, Building2, TrendingUp, UserCheck, Clock, ArrowUpRight } from "lucide-react";
+import { Users, Briefcase, FileText, Building2, TrendingUp, UserCheck, Clock, ArrowUpRight, MessageSquare, Bell } from "lucide-react";
 
 interface Stats {
   totalUsers: number;
@@ -13,6 +13,9 @@ interface Stats {
   totalJobs: number;
   activeJobs: number;
   totalApplications: number;
+  totalContacts: number;
+  unreadContacts: number;
+  totalSubscribers: number;
   applicationsByStatus: { status: string; count: number }[];
   jobsByCategory: { category: string; count: number }[];
   recentUsers: { _id: string; name: string; email: string; role: string; createdAt: string }[];
@@ -79,12 +82,14 @@ export default function AdminDashboard() {
   }, []);
 
   const statCards = [
-    { label: "Total Users",    value: stats?.totalUsers ?? 0,        icon: Users,      gradient: "linear-gradient(135deg,#667eea,#764ba2)" },
-    { label: "Employers",      value: stats?.totalEmployers ?? 0,     icon: Building2,  gradient: "linear-gradient(135deg,#f093fb,#f5576c)" },
-    { label: "Candidates",     value: stats?.totalCandidates ?? 0,    icon: UserCheck,  gradient: "linear-gradient(135deg,#4facfe,#00f2fe)" },
-    { label: "Total Jobs",     value: stats?.totalJobs ?? 0,          icon: Briefcase,  gradient: "linear-gradient(135deg,#43e97b,#38f9d7)" },
-    { label: "Active Jobs",    value: stats?.activeJobs ?? 0,         icon: TrendingUp, gradient: "linear-gradient(135deg,#fa709a,#fee140)" },
-    { label: "Applications",   value: stats?.totalApplications ?? 0,  icon: FileText,   gradient: "linear-gradient(135deg,#a18cd1,#fbc2eb)" },
+    { label: "Total Users",    value: stats?.totalUsers ?? 0,        icon: Users,         gradient: "linear-gradient(135deg,#667eea,#764ba2)" },
+    { label: "Employers",      value: stats?.totalEmployers ?? 0,     icon: Building2,     gradient: "linear-gradient(135deg,#f093fb,#f5576c)" },
+    { label: "Candidates",     value: stats?.totalCandidates ?? 0,    icon: UserCheck,     gradient: "linear-gradient(135deg,#4facfe,#00f2fe)" },
+    { label: "Total Jobs",     value: stats?.totalJobs ?? 0,          icon: Briefcase,     gradient: "linear-gradient(135deg,#43e97b,#38f9d7)" },
+    { label: "Active Jobs",    value: stats?.activeJobs ?? 0,         icon: TrendingUp,    gradient: "linear-gradient(135deg,#fa709a,#fee140)" },
+    { label: "Applications",   value: stats?.totalApplications ?? 0,  icon: FileText,      gradient: "linear-gradient(135deg,#a18cd1,#fbc2eb)" },
+    { label: "Contact Messages", value: stats?.totalContacts ?? 0,    icon: MessageSquare, gradient: "linear-gradient(135deg,#f7971e,#ffd200)" },
+    { label: "Subscribers",    value: stats?.totalSubscribers ?? 0,   icon: Bell,          gradient: "linear-gradient(135deg,#11998e,#38ef7d)" },
   ];
 
   return (
@@ -108,14 +113,24 @@ export default function AdminDashboard() {
         </div>
 
         {/* Stat Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3 sm:gap-4">
           {loading
-            ? Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-28" />)
+            ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton h-28" />)
             : statCards.map(({ label, value, icon, gradient }, i) => (
                 <StatCard key={label} label={label} value={value} icon={icon} gradient={gradient} delay={i * 60} />
               ))
           }
         </div>
+
+        {/* Unread contacts alert */}
+        {!loading && (stats?.unreadContacts ?? 0) > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center gap-3">
+            <MessageSquare className="w-4 h-4 text-amber-600 shrink-0" />
+            <p className="text-sm text-amber-800 font-medium">
+              You have <strong>{stats!.unreadContacts}</strong> unread contact message{stats!.unreadContacts !== 1 ? "s" : ""}.
+            </p>
+          </div>
+        )}
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">

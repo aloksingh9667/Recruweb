@@ -18,6 +18,7 @@ router.get("/stats", async (req, res) => {
   const [
     totalUsers, totalEmployers, totalCandidates,
     totalJobs, activeJobs, totalApplications,
+    totalContacts, unreadContacts, totalSubscribers,
     recentUsers, recentJobs, applicationsByStatus, jobsByCategory,
   ] = await Promise.all([
     User.countDocuments({ role: { $ne: "admin" } }),
@@ -26,6 +27,9 @@ router.get("/stats", async (req, res) => {
     Job.countDocuments(),
     Job.countDocuments({ isActive: true }),
     Application.countDocuments(),
+    Contact.countDocuments(),
+    Contact.countDocuments({ isRead: false }),
+    Subscriber.countDocuments(),
     User.find({ role: { $ne: "admin" } }).sort({ createdAt: -1 }).limit(5).select("-password"),
     Job.find().sort({ createdAt: -1 }).limit(5),
     Application.aggregate([
@@ -42,6 +46,7 @@ router.get("/stats", async (req, res) => {
   res.json({
     totalUsers, totalEmployers, totalCandidates,
     totalJobs, activeJobs, totalApplications,
+    totalContacts, unreadContacts, totalSubscribers,
     applicationsByStatus, jobsByCategory,
     recentUsers: recentUsers.map(u => u.toJSON()),
     recentJobs: recentJobs.map(j => j.toJSON()),
@@ -103,8 +108,10 @@ router.delete("/users/:id", async (req, res) => {
 
 // GET /api/admin/employers  (with job counts)
 router.get("/employers", async (req, res) => {
-  const { search, page = 1, limit = 20 } = req.query;
+  const { search, status, page = 1, limit = 20 } = req.query;
   const filter = { role: "employer" };
+  if (status === "banned") filter.isBanned = true;
+  else if (status === "active") filter.isBanned = { $ne: true };
   if (search) filter.$or = [
     { name: { $regex: search, $options: "i" } },
     { email: { $regex: search, $options: "i" } },
@@ -252,6 +259,22 @@ router.get("/applications", async (req, res) => {
   ]);
   const total = countResult[0]?.total || 0;
   res.json({ applications, total, page: Number(page), totalPages: Math.ceil(total / Number(limit)) });
+});
+
+// PUT /api/admin/applications/:id/status
+router.put("/applications/:id/status", async (req, res) => {
+  const { status } = req.body;
+  const valid = ["pending", "reviewed", "shortlisted", "rejected", "hired"];
+  if (!valid.includes(status)) return res.status(400).json({ message: "Invalid status" });
+  const app = await Application.findByIdAndUpdate(req.params.id, { status }, { new: true });
+  if (!app) return res.status(404).json({ message: "Application not found" });
+  res.json(app.toJSON());
+});
+
+// DELETE /api/admin/applications/:id
+router.delete("/applications/:id", async (req, res) => {
+  await Application.findByIdAndDelete(req.params.id);
+  res.json({ success: true });
 });
 
 // ─── CONTACTS ─────────────────────────────────────────────────────────────────

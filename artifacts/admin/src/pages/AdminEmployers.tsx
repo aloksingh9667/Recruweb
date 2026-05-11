@@ -9,10 +9,11 @@ import {
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useDebounce } from "@/hooks/useDebounce";
 import {
   Search, Ban, Trash2, UserCheck, RefreshCw, Building2,
   Briefcase, Mail, Calendar, ChevronLeft, ChevronRight, X,
-  Globe, MapPin, Users,
+  Globe, MapPin,
 } from "lucide-react";
 
 interface Employer {
@@ -20,6 +21,12 @@ interface Employer {
   jobCount: number; activeJobCount: number;
   profile?: { company?: string; industry?: string; website?: string; location?: string; description?: string };
 }
+
+const STATUS_FILTERS = [
+  { value: "all",    label: "All" },
+  { value: "active", label: "Active" },
+  { value: "banned", label: "Banned" },
+];
 
 function SkeletonCard() {
   return (
@@ -45,16 +52,22 @@ export default function AdminEmployers() {
   const [employers, setEmployers] = useState<Employer[]>([]);
   const [total, setTotal] = useState(0);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  const debouncedSearch = useDebounce(search, 400);
+
+  useEffect(() => { setPage(1); }, [debouncedSearch, statusFilter]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), limit: "12" });
-      if (search) params.set("search", search);
+      if (debouncedSearch) params.set("search", debouncedSearch);
+      if (statusFilter !== "all") params.set("status", statusFilter);
       const data = await fetchAdmin(`/admin/employers?${params}`);
       setEmployers(data.employers);
       setTotal(data.total);
@@ -63,7 +76,7 @@ export default function AdminEmployers() {
     } finally {
       setLoading(false);
     }
-  }, [page, search]);
+  }, [page, debouncedSearch, statusFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -111,25 +124,36 @@ export default function AdminEmployers() {
           </Button>
         </div>
 
-        {/* Search */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <div className="flex gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Search employer name or email..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") { setPage(1); load(); } }}
-                className="pl-9 rounded-xl border-gray-200"
-              />
-              {search && (
-                <button onClick={() => { setSearch(""); setPage(1); }} className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
-                </button>
-              )}
-            </div>
-            <Button onClick={() => { setPage(1); load(); }} className="rounded-xl">Search</Button>
+        {/* Search + Filter */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              placeholder="Search employer name or email…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-9 rounded-xl border-gray-200"
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2">
+                <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
+              </button>
+            )}
+          </div>
+          <div className="flex gap-1">
+            {STATUS_FILTERS.map(f => (
+              <button
+                key={f.value}
+                onClick={() => setStatusFilter(f.value)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  statusFilter === f.value
+                    ? "bg-purple-600 text-white shadow-sm"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -188,20 +212,19 @@ export default function AdminEmployers() {
                     </div>
                   </div>
 
-                  {/* Expandable info */}
+                  {/* Expandable toggle */}
                   <button
                     onClick={() => setExpandedId(isExpanded ? null : e._id)}
                     className="mt-3 w-full text-xs text-gray-400 hover:text-purple-600 transition-colors flex items-center justify-center gap-1"
                   >
-                    {isExpanded ? "Hide details" : "Show details"}
-                    {isExpanded ? <ChevronLeft className="w-3 h-3 rotate-90" /> : <ChevronRight className="w-3 h-3 rotate-90" />}
+                    {isExpanded ? "Hide details ▲" : "Show details ▼"}
                   </button>
 
                   {isExpanded && (
                     <div className="mt-3 pt-3 border-t border-gray-100 space-y-2" style={{ animation: "fadeDown .2s ease" }}>
                       <div className="flex items-center gap-2 text-xs text-gray-500">
                         <Mail className="w-3.5 h-3.5 text-gray-300 shrink-0" />
-                        <span className="truncate">{e.email}</span>
+                        <a href={`mailto:${e.email}`} className="truncate hover:text-indigo-600">{e.email}</a>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-gray-500">
                         <Calendar className="w-3.5 h-3.5 text-gray-300 shrink-0" />
@@ -223,7 +246,7 @@ export default function AdminEmployers() {
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                           <Globe className="w-3.5 h-3.5 text-gray-300 shrink-0" />
                           <a href={e.profile.website} target="_blank" rel="noopener noreferrer"
-                            className="text-indigo-500 hover:underline truncate" onClick={ev => ev.stopPropagation()}>
+                            className="text-indigo-500 hover:underline truncate">
                             {e.profile.website.replace(/^https?:\/\//, "")}
                           </a>
                         </div>
@@ -247,7 +270,7 @@ export default function AdminEmployers() {
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button size="sm" variant="destructive" className="h-8 px-3 text-xs rounded-xl">
+                        <Button size="sm" variant="destructive" className="h-8 px-3 text-xs rounded-xl" disabled={!!actionLoading}>
                           <Trash2 className="w-3 h-3" />
                         </Button>
                       </AlertDialogTrigger>

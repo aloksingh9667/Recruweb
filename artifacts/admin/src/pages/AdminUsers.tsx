@@ -10,6 +10,7 @@ import {
   AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useDebounce } from "@/hooks/useDebounce";
 import {
   Search, Ban, Trash2, UserCheck, RefreshCw, X,
   Mail, Calendar, Briefcase, FileText, ChevronLeft, ChevronRight,
@@ -62,11 +63,15 @@ export default function AdminUsers() {
   const [detailUser, setDetailUser] = useState<UserDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
+  const debouncedSearch = useDebounce(search, 400);
+
+  useEffect(() => { setPage(1); }, [debouncedSearch, roleFilter]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), limit: "15" });
-      if (search) params.set("search", search);
+      if (debouncedSearch) params.set("search", debouncedSearch);
       if (roleFilter !== "all") params.set("role", roleFilter);
       const data = await fetchAdmin(`/admin/users?${params}`);
       setUsers(data.users);
@@ -76,7 +81,7 @@ export default function AdminUsers() {
     } finally {
       setLoading(false);
     }
-  }, [page, search, roleFilter]);
+  }, [page, debouncedSearch, roleFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -146,18 +151,22 @@ export default function AdminUsers() {
             <div className="relative flex-1 min-w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <Input
-                placeholder="Search name or email..."
+                placeholder="Search name or email…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") { setPage(1); load(); } }}
                 className="pl-9 rounded-xl border-gray-200"
               />
+              {search && (
+                <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <X className="w-3.5 h-3.5 text-gray-400 hover:text-gray-600" />
+                </button>
+              )}
             </div>
-            <div className="flex gap-2 bg-gray-100 p-1 rounded-xl">
+            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
               {["all", "candidate", "employer"].map(r => (
                 <button
                   key={r}
-                  onClick={() => { setRoleFilter(r); setPage(1); }}
+                  onClick={() => setRoleFilter(r)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize ${
                     roleFilter === r ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
                   }`}
@@ -166,7 +175,6 @@ export default function AdminUsers() {
                 </button>
               ))}
             </div>
-            <Button size="sm" onClick={() => { setPage(1); load(); }} className="rounded-xl">Search</Button>
           </div>
         </div>
 
