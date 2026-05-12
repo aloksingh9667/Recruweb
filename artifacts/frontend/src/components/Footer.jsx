@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import {
   Briefcase, Facebook, Twitter, Linkedin, Instagram, Youtube,
-  Phone, Mail, MapPin, Send, CheckCircle, ArrowRight, Sparkles,
+  Phone, Mail, MapPin, Send, CheckCircle, ArrowRight, Sparkles, Bell,
 } from "lucide-react";
 
 const footerLinks = {
@@ -57,7 +57,7 @@ const socialLinks = [
   { Icon: Youtube, href: "#", label: "YouTube", bg: "hover:bg-red-600", ring: "hover:ring-red-500/30" },
 ];
 
-function NewsletterBox() {
+function NewsletterSection() {
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("idle");
 
@@ -82,44 +82,84 @@ function NewsletterBox() {
   };
 
   return (
-    <div className="relative bg-gradient-to-br from-indigo-900/80 to-purple-900/60 rounded-2xl p-5 mb-6 border border-indigo-500/20 overflow-hidden">
-      <div className="absolute -top-4 -right-4 w-20 h-20 bg-indigo-500/10 rounded-full blur-xl" />
-      <div className="relative">
-        <div className="flex items-center gap-2 mb-1">
-          <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
-          <p className="text-white font-semibold text-sm">Stay in the loop</p>
-        </div>
-        <p className="text-gray-400 text-xs mb-4 leading-relaxed">
-          Get the latest jobs, hiring tips & career news delivered weekly.
-        </p>
-        {status === "done" ? (
-          <div className="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
-            <CheckCircle className="w-4 h-4" /> Subscribed! Thank you.
+    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-900 via-indigo-800 to-purple-900 border border-indigo-500/20">
+      {/* Decorative blobs */}
+      <div className="absolute -top-12 -right-12 w-48 h-48 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-8 -left-8 w-40 h-40 bg-purple-500/15 rounded-full blur-2xl pointer-events-none" />
+
+      <div className="relative px-6 py-8 sm:px-10 sm:py-10">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6 lg:gap-10">
+
+          {/* Left: text */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-7 h-7 rounded-lg bg-indigo-500/30 flex items-center justify-center">
+                <Bell className="w-3.5 h-3.5 text-indigo-300" />
+              </div>
+              <span className="text-indigo-300 text-xs font-semibold uppercase tracking-widest">Newsletter</span>
+            </div>
+            <h3 className="text-white font-bold text-xl sm:text-2xl mb-1 leading-snug">
+              Stay in the loop
+            </h3>
+            <p className="text-gray-400 text-sm leading-relaxed max-w-md">
+              Get the latest jobs, hiring tips &amp; career news delivered straight to your inbox — every week, for free.
+            </p>
+            <div className="flex flex-wrap gap-4 mt-3">
+              {["10K+ subscribers", "Weekly digest", "Unsubscribe anytime"].map((tag) => (
+                <span key={tag} className="flex items-center gap-1.5 text-gray-500 text-xs">
+                  <Sparkles className="w-3 h-3 text-indigo-400" />
+                  {tag}
+                </span>
+              ))}
+            </div>
           </div>
-        ) : (
-          <form onSubmit={subscribe} className="flex gap-2">
-            <input
-              type="email"
-              required
-              placeholder="your@email.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="flex-1 h-9 px-3 text-sm bg-white/10 border border-white/20 text-white placeholder:text-white/40 rounded-lg outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-all"
-            />
-            <button
-              type="submit"
-              disabled={status === "loading"}
-              className="h-9 px-3 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all duration-200 disabled:opacity-60 shadow-lg shadow-indigo-500/30"
-            >
-              {status === "loading"
-                ? <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                : <><Send className="w-3 h-3" /><span>Send</span></>}
-            </button>
-          </form>
-        )}
-        {status === "error" && (
-          <p className="text-red-400 text-xs mt-2">Already subscribed or something went wrong.</p>
-        )}
+
+          {/* Right: form */}
+          <div className="w-full lg:w-auto lg:min-w-[380px]">
+            {status === "done" ? (
+              <div className="flex items-center gap-3 bg-emerald-900/40 border border-emerald-500/30 rounded-xl px-5 py-4">
+                <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />
+                <div>
+                  <p className="text-emerald-400 font-semibold text-sm">You're subscribed!</p>
+                  <p className="text-emerald-600 text-xs mt-0.5">Check your inbox for a confirmation email.</p>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={subscribe} className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="email"
+                  required
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="flex-1 h-11 px-4 text-sm bg-white/10 border border-white/20 text-white placeholder:text-white/35 rounded-xl outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/30 transition-all"
+                />
+                <button
+                  type="submit"
+                  disabled={status === "loading"}
+                  className="h-11 px-6 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-sm font-semibold rounded-xl flex items-center justify-center gap-2 transition-all duration-200 disabled:opacity-60 shadow-lg shadow-indigo-500/30 whitespace-nowrap shrink-0"
+                >
+                  {status === "loading" ? (
+                    <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <><Send className="w-3.5 h-3.5" /> Subscribe</>
+                  )}
+                </button>
+              </form>
+            )}
+            {status === "error" && (
+              <p className="text-red-400 text-xs mt-2 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                Already subscribed or something went wrong. Try again.
+              </p>
+            )}
+            <p className="text-gray-600 text-xs mt-3">
+              By subscribing you agree to our{" "}
+              <Link href="/help" className="text-gray-500 hover:text-indigo-400 underline transition-colors">Privacy Policy</Link>.
+              No spam, ever.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -131,11 +171,10 @@ export default function Footer() {
 
       {/* Top CTA Banner */}
       <div className="relative overflow-hidden bg-gradient-to-r from-indigo-700 via-blue-700 to-purple-700 py-10">
-        {/* Animated background blobs */}
-        <div className="absolute top-0 left-1/4 w-64 h-64 bg-white/5 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-white/5 rounded-full blur-2xl animate-pulse delay-1000" />
+        <div className="absolute top-0 left-1/4 w-64 h-64 bg-white/5 rounded-full blur-3xl animate-pulse pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-48 h-48 bg-white/5 rounded-full blur-2xl animate-pulse delay-1000 pointer-events-none" />
 
-        <div className="relative container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
+        <div className="relative container mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
           <div>
             <h3 className="text-white font-bold text-xl md:text-2xl">
               Ready to find your next opportunity?
@@ -164,13 +203,14 @@ export default function Footer() {
         </div>
       </div>
 
-      {/* Main Footer */}
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-x-6 gap-y-10">
+      {/* Main Footer Body */}
+      <div className="container mx-auto px-4 sm:px-6 pt-12 pb-8">
+
+        {/* Brand + Links Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-x-6 gap-y-10">
 
           {/* Brand Column */}
-          <div className="col-span-2 sm:col-span-3 lg:col-span-1">
-            {/* Logo */}
+          <div className="col-span-2 sm:col-span-3 xl:col-span-1">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-9 h-9 bg-gradient-to-br from-indigo-600 to-blue-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
                 <Briefcase className="w-5 h-5 text-white" />
@@ -204,7 +244,7 @@ export default function Footer() {
             </div>
 
             {/* Social Links */}
-            <div className="flex gap-2 mb-6">
+            <div className="flex flex-wrap gap-2">
               {socialLinks.map(({ Icon, href, label, bg, ring }) => (
                 <a
                   key={label}
@@ -216,14 +256,11 @@ export default function Footer() {
                 </a>
               ))}
             </div>
-
-            {/* Newsletter */}
-            <NewsletterBox />
           </div>
 
           {/* Link Columns */}
           {Object.entries(footerLinks).map(([heading, links]) => (
-            <div key={heading}>
+            <div key={heading} className="min-w-0">
               <h4 className="text-white font-semibold mb-4 text-sm tracking-wide">{heading}</h4>
               <ul className="space-y-2.5">
                 {links.map(({ label, href }) => (
@@ -232,7 +269,7 @@ export default function Footer() {
                       href={href}
                       className="group flex items-center gap-1 text-gray-500 hover:text-indigo-400 text-sm transition-colors duration-150"
                     >
-                      <span className="group-hover:translate-x-0.5 transition-transform duration-150">{label}</span>
+                      <span className="group-hover:translate-x-0.5 transition-transform duration-150 leading-snug">{label}</span>
                     </Link>
                   </li>
                 ))}
@@ -241,11 +278,16 @@ export default function Footer() {
           ))}
         </div>
 
+        {/* Newsletter — Full Width */}
+        <div className="mt-12">
+          <NewsletterSection />
+        </div>
+
         {/* App Download + Badges */}
-        <div className="mt-10 pt-8 border-t border-gray-800/60 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="mt-8 pt-8 border-t border-gray-800/60 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
             <p className="text-white font-semibold mb-3 text-sm">Download the Recruweb App</p>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               {[
                 { label: "Google Play", sublabel: "GET IT ON", icon: "▶" },
                 { label: "App Store", sublabel: "Download on the", icon: "⌘" },
@@ -264,7 +306,7 @@ export default function Footer() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-3 justify-center md:justify-end">
+          <div className="flex flex-wrap gap-3">
             <span className="flex items-center gap-1.5 bg-emerald-900/40 text-emerald-400 border border-emerald-700/30 px-3 py-1.5 rounded-lg text-xs font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               ISO 27001 Certified
@@ -283,7 +325,7 @@ export default function Footer() {
 
       {/* Bottom Bar */}
       <div className="border-t border-gray-800/60 py-5">
-        <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
+        <div className="container mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
           <p>© {new Date().getFullYear()} Recruweb Resources Pvt. Ltd. All rights reserved.</p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Link href="/help" className="hover:text-indigo-400 transition-colors">Privacy Policy</Link>
