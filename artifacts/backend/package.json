@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "PORT=8080 node --watch src/index.js",
+    "dev": "cross-env PORT=8080 node --watch src/index.js",
     "build": "echo 'No build step for JS server'",
     "start": "node src/index.js",
     "typecheck": "echo 'No typecheck for JS'"
@@ -25,6 +25,7 @@
     "pino-http": "^10"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "pino-pretty": "^13"
   }
 }
