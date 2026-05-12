@@ -10,18 +10,40 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Briefcase, Building2, User, Eye, EyeOff, Phone, Mail, Lock, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Briefcase, Building2, User, Eye, EyeOff, Phone, Mail, Lock, ArrowRight, CheckCircle2, MapPin, Linkedin, GraduationCap, Globe, Users, Tag } from "lucide-react";
 
 const FIELDS_OF_INTEREST = [
   "Information Technology", "Software Engineering", "Data Science & Analytics",
   "Marketing & Communications", "Sales & Business Development", "Finance & Accounting",
   "Human Resources", "Design & Creative", "Operations & Logistics", "Healthcare",
-  "Education & Training", "Legal & Compliance", "Engineering (Non-IT)", "Other",
+  "Education & Training", "Legal & Compliance", "Engineering (Non-IT)", "Content Writing",
+  "Customer Support", "Banking & Insurance", "Retail & E-commerce", "Other",
 ];
 
 const EXPERIENCE_LEVELS = [
-  "Fresher (0 years)", "1-2 years", "3-5 years", "5-8 years", "8-12 years", "12+ years",
+  "Fresher (0 years)", "Less than 1 year", "1-2 years", "2-3 years",
+  "3-5 years", "5-8 years", "8-12 years", "12+ years",
 ];
+
+const INDUSTRIES = [
+  "Information Technology", "Banking & Financial Services", "Healthcare & Pharma",
+  "E-commerce & Retail", "Manufacturing", "Consulting", "Media & Entertainment",
+  "Education & EdTech", "Real Estate", "Logistics & Supply Chain",
+  "Telecom", "FMCG", "Automobile", "Energy & Utilities", "Other",
+];
+
+const COMPANY_SIZES = [
+  "1-10 (Startup)", "11-50 (Small)", "51-200 (Small-Medium)",
+  "201-500 (Medium)", "501-1000 (Large)", "1001-5000 (Enterprise)", "5000+ (MNC)",
+];
+
+const EDUCATION_LEVELS = [
+  "High School / 12th", "Diploma", "B.Tech / B.E.", "BCA / B.Sc (IT)",
+  "B.Com / BBA / BA", "M.Tech / M.E.", "MCA / M.Sc", "MBA / PGDM",
+  "Ph.D", "Other Graduate", "Other Post-Graduate",
+];
+
+const WORK_MODES = ["Work from Office", "Work from Home", "Hybrid", "Open to All"];
 
 const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -33,6 +55,15 @@ const registerSchema = z.object({
   fieldOfInterest: z.string().optional(),
   experienceLevel: z.string().optional(),
   currentLocation: z.string().optional(),
+  currentTitle: z.string().optional(),
+  education: z.string().optional(),
+  skills: z.string().optional(),
+  preferredWorkMode: z.string().optional(),
+  linkedinUrl: z.string().optional(),
+  industry: z.string().optional(),
+  companySize: z.string().optional(),
+  website: z.string().optional(),
+  hiringFor: z.string().optional(),
 }).refine(data => {
   if (data.role === "employer" && (!data.company || data.company.length < 2)) return false;
   return true;
@@ -48,7 +79,13 @@ export default function Register() {
 
   const form = useForm({
     resolver: zodResolver(registerSchema),
-    defaultValues: { name: "", email: "", phone: "", password: "", role: "candidate", company: "", fieldOfInterest: "", experienceLevel: "", currentLocation: "" },
+    defaultValues: {
+      name: "", email: "", phone: "", password: "",
+      role: "candidate", company: "",
+      fieldOfInterest: "", experienceLevel: "", currentLocation: "",
+      currentTitle: "", education: "", skills: "", preferredWorkMode: "", linkedinUrl: "",
+      industry: "", companySize: "", website: "", hiringFor: "",
+    },
   });
 
   const role = form.watch("role");
@@ -59,22 +96,28 @@ export default function Register() {
   };
 
   const nextStep = async () => {
-    const fields = step === 1 ? ["name", "email", "phone", "password", "role", ...(role === "employer" ? ["company"] : [])] : [];
+    const fields = ["name", "email", "phone", "password", "role", ...(role === "employer" ? ["company"] : [])];
     const valid = await form.trigger(fields);
     if (valid) setStep(2);
   };
 
   const onSubmit = async (data) => {
     try {
-      const payload = { ...data, phone: data.phone || undefined };
+      const payload = {
+        ...data,
+        phone: data.phone || undefined,
+        skills: data.skills ? data.skills.split(",").map(s => s.trim()).filter(Boolean) : undefined,
+      };
       const res = await fetchApi("/auth/register", { method: "POST", body: JSON.stringify(payload) });
       if (res?.token && res?.user) {
         login(res.token, res.user);
-        toast({ title: "Welcome to Recruweb! 🎉", description: "Your account has been created successfully." });
+        toast({ title: "Welcome to Recruweb!", description: "Your account has been created successfully." });
         setLocation(res.user.role === "employer" ? "/employer/dashboard" : "/candidate/dashboard");
+      } else {
+        toast({ title: "Registration failed", description: "Unexpected response. Please try again.", variant: "destructive" });
       }
     } catch (err) {
-      toast({ title: "Registration failed", description: err.message, variant: "destructive" });
+      toast({ title: "Registration failed", description: err.message || "Something went wrong. Please try again.", variant: "destructive" });
     }
   };
 
@@ -120,7 +163,7 @@ export default function Register() {
             {[1, 2].map((s) => (
               <div key={s} className="flex items-center gap-2">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${step >= s ? "bg-primary text-white" : "bg-gray-200 dark:bg-gray-700 text-gray-500"}`}>{s}</div>
-                <span className={`text-sm font-medium ${step >= s ? "text-primary" : "text-gray-400"}`}>{s === 1 ? "Basic Info" : "Preferences"}</span>
+                <span className={`text-sm font-medium ${step >= s ? "text-primary" : "text-gray-400"}`}>{s === 1 ? "Basic Info" : "Your Profile"}</span>
                 {s < 2 && <div className={`flex-1 h-0.5 w-12 ${step > s ? "bg-primary" : "bg-gray-200"}`} />}
               </div>
             ))}
@@ -129,9 +172,9 @@ export default function Register() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-8">
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)}>
+                {/* ── STEP 1 ── */}
                 {step === 1 && (
                   <div className="space-y-5">
-                    {/* Role Selection */}
                     <div>
                       <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">I want to:</p>
                       <div className="grid grid-cols-2 gap-3">
@@ -232,55 +275,135 @@ export default function Register() {
                     <Button type="button" className="w-full h-11 gap-2 font-semibold" onClick={nextStep}>
                       Continue <ArrowRight className="w-4 h-4" />
                     </Button>
+
+                    <div className="text-center text-sm text-gray-500">
+                      Already have an account?{" "}
+                      <Link href="/login" className="font-semibold text-primary hover:underline">Log in</Link>
+                    </div>
                   </div>
                 )}
 
-                {step === 2 && (
-                  <div className="space-y-5">
-                    <div className="text-center mb-2">
+                {/* ── STEP 2 — CANDIDATE ── */}
+                {step === 2 && role === "candidate" && (
+                  <div className="space-y-4">
+                    <div className="text-center mb-1">
                       <h3 className="font-semibold text-lg text-gray-900 dark:text-white">Tell us about yourself</h3>
-                      <p className="text-sm text-gray-500">Help us personalize your experience (optional)</p>
+                      <p className="text-sm text-gray-500">Help us match you with the right jobs (all optional)</p>
                     </div>
 
-                    {role === "candidate" && (
-                      <>
-                        <FormField control={form.control} name="fieldOfInterest" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Field of Interest</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger><SelectValue placeholder="Select your primary field" /></SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {FIELDS_OF_INTEREST.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="currentTitle" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Current Job Title</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <Input placeholder="e.g. Software Engineer" className="pl-10" {...field} />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
 
-                        <FormField control={form.control} name="experienceLevel" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Experience Level</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger><SelectValue placeholder="How many years of experience?" /></SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {EXPERIENCE_LEVELS.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                      </>
-                    )}
+                      <FormField control={form.control} name="currentLocation" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Current City</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <Input placeholder="e.g. Noida, Delhi, Bangalore" className="pl-10" {...field} />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
 
-                    <FormField control={form.control} name="currentLocation" render={({ field }) => (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="fieldOfInterest" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Field of Interest</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger><SelectValue placeholder="Select your primary field" /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {FIELDS_OF_INTEREST.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+
+                      <FormField control={form.control} name="experienceLevel" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Experience Level</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger><SelectValue placeholder="Years of experience?" /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {EXPERIENCE_LEVELS.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="education" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Highest Education</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger><SelectValue placeholder="Qualification" /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {EDUCATION_LEVELS.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+
+                      <FormField control={form.control} name="preferredWorkMode" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Preferred Work Mode</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger><SelectValue placeholder="Office / WFH / Hybrid" /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {WORK_MODES.map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+
+                    <FormField control={form.control} name="skills" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Current Location</FormLabel>
+                        <FormLabel>Key Skills</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g. Noida, Delhi, Bangalore..." {...field} />
+                          <div className="relative">
+                            <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input placeholder="e.g. React, Node.js, Excel, Sales (comma separated)" className="pl-10" {...field} />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="linkedinUrl" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>LinkedIn Profile</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Linkedin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input placeholder="https://linkedin.com/in/yourname" className="pl-10" {...field} />
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -303,15 +426,109 @@ export default function Register() {
                     </button>
                   </div>
                 )}
+
+                {/* ── STEP 2 — EMPLOYER ── */}
+                {step === 2 && role === "employer" && (
+                  <div className="space-y-4">
+                    <div className="text-center mb-1">
+                      <h3 className="font-semibold text-lg text-gray-900 dark:text-white">About your company</h3>
+                      <p className="text-sm text-gray-500">Help candidates know you better (all optional)</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="industry" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Industry</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger><SelectValue placeholder="Select your industry" /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {INDUSTRIES.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+
+                      <FormField control={form.control} name="companySize" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Company Size</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger><SelectValue placeholder="Number of employees" /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {COMPANY_SIZES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField control={form.control} name="currentLocation" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Office Location</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <Input placeholder="e.g. Noida Sector 62, Gurugram" className="pl-10" {...field} />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+
+                      <FormField control={form.control} name="hiringFor" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Hiring For (Field)</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger><SelectValue placeholder="Primary hiring domain" /></SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {FIELDS_OF_INTEREST.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
+
+                    <FormField control={form.control} name="website" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Company Website</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Input placeholder="https://yourcompany.com" className="pl-10" {...field} />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-xl p-4 text-sm text-blue-700 dark:text-blue-300">
+                      <p className="font-medium mb-1">Ready to hire!</p>
+                      <p className="text-xs opacity-80">A complete company profile attracts better candidates and builds trust.</p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button type="button" variant="outline" className="flex-1 h-11" onClick={() => setStep(1)}>Back</Button>
+                      <Button type="submit" className="flex-1 h-11 gap-2 font-semibold" disabled={form.formState.isSubmitting}>
+                        {form.formState.isSubmitting ? "Creating..." : <><CheckCircle2 className="w-4 h-4" /> Create Account</>}
+                      </Button>
+                    </div>
+
+                    <button type="button" onClick={form.handleSubmit(onSubmit)} className="w-full text-center text-xs text-gray-400 hover:text-gray-600 hover:underline">
+                      Skip and create account
+                    </button>
+                  </div>
+                )}
               </form>
             </Form>
-
-            {step === 1 && (
-              <div className="mt-5 text-center text-sm text-gray-500">
-                Already have an account?{" "}
-                <Link href="/login" className="font-semibold text-primary hover:underline">Log in</Link>
-              </div>
-            )}
           </div>
         </div>
       </div>

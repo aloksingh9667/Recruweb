@@ -24,6 +24,10 @@ args = "Backend"
 task = "workflow.run"
 args = "Frontend"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Admin"
+
 [[workflows.workflow]]
 name = "Backend"
 author = "agent"
@@ -48,6 +52,18 @@ waitForPort = 21329
 [workflows.workflow.metadata]
 outputType = "webview"
 
+[[workflows.workflow]]
+name = "Admin"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=3002 BASE_PATH=/ pnpm --filter @workspace/admin run dev"
+waitForPort = 3002
+
 [agent]
 stack = "BEST_EFFORT_FALLBACK"
 expertMode = true
@@ -55,6 +71,10 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[[ports]]
+localPort = 3002
+externalPort = 3002
 
 [[ports]]
 localPort = 8080

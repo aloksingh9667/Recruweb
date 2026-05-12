@@ -18,7 +18,7 @@ function getAI() {
 async function gemini(prompt, maxTokens = 512) {
   const ai = getAI();
   const response = await ai.models.generateContent({
-    model: "gemini-2.0-flash-lite",
+    model: "gemini-1.5-flash-8b",
     contents: [{ role: "user", parts: [{ text: prompt }] }],
     config: { maxOutputTokens: maxTokens },
   });
@@ -28,7 +28,7 @@ async function gemini(prompt, maxTokens = 512) {
 async function geminiChat(contents, systemInstruction, maxTokens = 512) {
   const ai = getAI();
   const response = await ai.models.generateContent({
-    model: "gemini-2.0-flash-lite",
+    model: "gemini-1.5-flash-8b",
     contents,
     config: { systemInstruction, maxOutputTokens: maxTokens },
   });
@@ -45,17 +45,49 @@ function parseJSON(text, fallback) {
 
 function fallbackReply(msg) {
   const m = (msg || "").toLowerCase();
+
+  if (m.includes("resume") || m.includes("cv")) {
+    return `Here are key resume tips for Indian job seekers:\n\n• **1–2 pages max** — keep it concise and relevant\n• **Strong Summary** — write 2-3 lines matching the job role\n• **Quantify achievements** — "Reduced costs by 30%" beats "Improved efficiency"\n• **ATS keywords** — copy exact terms from the job description\n• **Skills section** — list technical + soft skills clearly\n• **No photo or DOB** needed for most Indian companies\n\nWant tips for a specific field like IT, Sales, or HR?`;
+  }
+
+  if (m.includes("interview")) {
+    return `Interview tips to crack your next round:\n\n• **Research the company** — know their product, culture, recent news\n• **STAR method** — Situation, Task, Action, Result for behavioral questions\n• **Common questions** — "Tell me about yourself", "Why this company?", "Strengths/Weaknesses"\n• **Technical prep** — revise fundamentals + practice on paper\n• **Ask questions** — always prepare 2–3 questions for the interviewer\n• **Dress formally** for first rounds even if the company is casual\n\nWant mock questions for a specific role?`;
+  }
+
+  if (m.includes("salary") || m.includes("ctc") || m.includes("package") || m.includes("negotiate")) {
+    return `Salary negotiation tips for Indian professionals:\n\n• **Research benchmarks** — check AmbitionBox, LinkedIn, Glassdoor for your role + city\n• **Quote a range** — give a band (e.g. ₹8–10 LPA) based on your skills\n• **Never quote first** — let the employer name a number if possible\n• **Consider the full package** — bonus, ESOPs, health insurance add to CTC\n• **Use offers as leverage** — a competing offer is the strongest negotiation tool\n• **Be confident, not aggressive** — frame it as seeking fair market value`;
+  }
+
+  if (m.includes("fresher") || m.includes("no experience") || m.includes("fresh graduate") || m.includes("first job")) {
+    return `Tips for freshers landing their first job:\n\n• **Build projects** — 2–3 solid personal/college projects beat a blank resume\n• **Certifications** — Google, AWS, Coursera, NPTEL certs add credibility\n• **LinkedIn profile** — keep it updated with a professional photo and skills\n• **Campus placements** — use your college's placement cell actively\n• **Entry-level platforms** — Recruweb, Internshala, Naukri Fresh for fresher-friendly roles\n• **Apply in bulk** — at least 10–15 applications per week\n\nWhat field are you looking for jobs in?`;
+  }
+
+  if (m.includes("wfh") || m.includes("work from home") || m.includes("remote")) {
+    return `Work from home jobs are very popular! Tips:\n\n• **Check our Jobs page** — filter by "Remote" or "WFH" job type\n• **Top WFH fields** — IT/Software, Digital Marketing, Content Writing, Data Entry, Customer Support\n• **Reliable setup** — good internet + a quiet space is essential\n• **Show WFH experience** — mention any remote internships/projects on your resume\n• **Time management** — remote employers value self-starters who deliver on time`;
+  }
+
+  if (m.includes("job") || m.includes("vacancy") || m.includes("opening") || m.includes("hiring") || m.includes("career")) {
+    return `Ready to find your next opportunity?\n\n• **Browse Jobs** — visit our Jobs page for 1000s of live listings\n• **Use filters** — search by location, experience, salary, and category\n• **Apply early** — fresh jobs get more attention in first 48 hours\n• **Complete your profile** — employers prefer candidates with 100% profiles\n• **Set job alerts** — get notified when new matching jobs are posted\n\nTell me what type of job or location you're looking for and I'll help!`;
+  }
+
+  if (m.includes("noida") || m.includes("delhi") || m.includes("ncr") || m.includes("gurgaon") || m.includes("faridabad")) {
+    return `Noida & Delhi NCR is one of India's biggest job markets! 🏙️\n\n• **Top sectors** — IT/Software, BPO, Finance, FMCG, Manufacturing\n• **Popular hiring zones** — Sector 62, 63, 125 (Noida), Cyber City (Gurgaon)\n• **Average IT salary** — ₹4–15 LPA depending on experience\n• **Commute** — many companies offer shuttle + metro-friendly offices\n\nBrowse our Jobs page with "Noida" or "Delhi" filter to see all openings!`;
+  }
+
+  return `Hi! I'm your Recruweb AI career assistant. I can help you with:\n\n• Finding jobs in India\n• Resume writing tips\n• Interview preparation\n• Salary guidance\n• Career advice for freshers\n\nWhat would you like to know? Type your question or click a suggestion below!`;
+}
+
+function fallbackSuggestions(msg) {
+  const m = (msg || "").toLowerCase();
   if (m.includes("resume") || m.includes("cv"))
-    return "A strong resume should highlight your skills, experience, and achievements. Keep it to 1-2 pages, use action verbs, and tailor it to each job description.";
+    return ["Resume tips for IT jobs", "How to write a summary?", "ATS-friendly resume format"];
   if (m.includes("interview"))
-    return "Prepare for interviews by researching the company, practicing common HR and technical questions, and having concrete examples ready using the STAR method.";
-  if (m.includes("salary") || m.includes("ctc") || m.includes("package"))
-    return "Salary negotiation tip: research industry benchmarks on platforms like LinkedIn and AmbitionBox, then confidently quote a range based on your skills and experience.";
-  if (m.includes("fresher") || m.includes("fresh graduate"))
-    return "As a fresher, focus on building projects, internships, and certifications. Apply on Recruweb for entry-level roles and keep your profile complete for better visibility.";
-  if (m.includes("job") || m.includes("work") || m.includes("hiring") || m.includes("vacancy"))
-    return "Browse our Jobs page to find the latest openings. Use filters for location, experience, and salary to narrow your search!";
-  return "Hi! I'm here to help with your career — jobs, resumes, interview prep, and more. What would you like to know?";
+    return ["Common HR interview questions", "STAR method examples", "Technical interview tips"];
+  if (m.includes("salary") || m.includes("ctc"))
+    return ["How to negotiate salary?", "Average IT salary in Noida", "When to ask for a raise?"];
+  if (m.includes("fresher") || m.includes("first job"))
+    return ["Best jobs for freshers", "How to build a portfolio?", "Certifications that help freshers"];
+  return ["Find jobs in my city", "How to write a good resume?", "Interview tips for IT roles"];
 }
 
 // POST /api/ai/chat
@@ -78,7 +110,7 @@ router.post("/chat", async (req, res) => {
     reply = fallbackReply(message);
   }
 
-  let suggestions = ["Show me jobs in my field", "How to improve my resume?", "Interview tips for freshers?"];
+  let suggestions = fallbackSuggestions(message);
   try {
     const raw = await gemini(
       `Given this job seeker conversation, suggest exactly 3 short follow-up questions they might ask next. Return ONLY a JSON array of 3 strings (max 7 words each). User asked: "${message.slice(0, 100)}"`,
@@ -96,31 +128,43 @@ router.post("/resume-analyze", protect, requireRole("candidate"), async (req, re
   const { resumeText, targetRole } = req.body;
   if (!resumeText) return res.status(400).json({ message: "Resume text required" });
 
-  const raw = await gemini(`Analyze this resume for a "${targetRole || "professional"}" role. Respond ONLY with valid JSON:
+  const fallback = {
+    score: 65, atsRating: "Good",
+    strengths: ["Clear formatting", "Relevant experience listed", "Contact information present"],
+    improvements: ["Add measurable achievements with numbers", "Include role-specific keywords", "Expand skills section"],
+    suggestions: ["Use action verbs to start bullet points", "Quantify accomplishments (%, ₹, numbers)", "Tailor resume for each job"],
+    summary: "Your resume has a solid foundation. Adding metrics and job-specific keywords will make it significantly more competitive.",
+  };
+
+  try {
+    const raw = await gemini(`Analyze this resume for a "${targetRole || "professional"}" role. Respond ONLY with valid JSON:
 {"score":<0-100>,"atsRating":"<Excellent|Good|Fair|Poor>","strengths":["...","...","..."],"improvements":["...","...","..."],"suggestions":["...","...","..."],"summary":"<2-3 sentences>"}
 
 Resume: ${resumeText.slice(0, 3000)}`, 800);
-
-  const fallback = {
-    score: 65, atsRating: "Good",
-    strengths: ["Clear formatting", "Relevant experience", "Contact info present"],
-    improvements: ["Add measurable achievements", "Include target role keywords", "Expand skills section"],
-    suggestions: ["Use action verbs", "Quantify accomplishments", "Tailor per job"],
-    summary: "Resume looks decent. With minor improvements it can be much more competitive.",
-  };
-  res.json(parseJSON(raw, fallback));
+    res.json(parseJSON(raw, fallback));
+  } catch (err) {
+    logger.warn({ err }, "Gemini resume-analyze failed, using fallback");
+    res.json(fallback);
+  }
 });
 
 // POST /api/ai/resume-improve
 router.post("/resume-improve", async (req, res) => {
   const { fullName, jobTitle, summary, experience = [], skills } = req.body;
 
-  const expText = experience
-    .filter(e => e.company || e.position)
-    .map((e, i) => `Job ${i + 1}: ${e.position || "Role"} at ${e.company || "Company"} (${e.duration || ""})\nDescription: ${e.description || "(none)"}`)
-    .join("\n\n");
+  const fallback = {
+    summary: summary || "Experienced professional with strong technical skills and a proven track record of delivering results in fast-paced environments.",
+    jobTitle: jobTitle || "",
+    experience: experience.map(e => ({ description: e.description || "" })),
+  };
 
-  const prompt = `You are an expert resume writer. Rewrite the following resume content to be more impactful, professional, and ATS-optimized. Use strong action verbs, quantify achievements where possible, and keep it concise.
+  try {
+    const expText = experience
+      .filter(e => e.company || e.position)
+      .map((e, i) => `Job ${i + 1}: ${e.position || "Role"} at ${e.company || "Company"} (${e.duration || ""})\nDescription: ${e.description || "(none)"}`)
+      .join("\n\n");
+
+    const prompt = `You are an expert resume writer. Rewrite the following resume content to be more impactful, professional, and ATS-optimized. Use strong action verbs, quantify achievements where possible, and keep it concise.
 
 Name: ${fullName || "Candidate"}
 Target Role: ${jobTitle || "Professional"}
@@ -146,15 +190,12 @@ Rules:
 - Summary must be punchy and tailored to the target role
 - Use present tense for current role, past tense for others`;
 
-  const raw = await gemini(prompt, 1000);
-
-  const fallback = {
-    summary: summary || "Experienced professional with strong technical skills and a track record of delivering results.",
-    jobTitle: jobTitle || "",
-    experience: experience.map(e => ({ description: e.description || "" })),
-  };
-
-  res.json(parseJSON(raw, fallback));
+    const raw = await gemini(prompt, 1000);
+    res.json(parseJSON(raw, fallback));
+  } catch (err) {
+    logger.warn({ err }, "Gemini resume-improve failed, using fallback");
+    res.json(fallback);
+  }
 });
 
 // POST /api/ai/job-match
@@ -165,14 +206,26 @@ router.post("/job-match", protect, requireRole("candidate"), async (req, res) =>
   const profile = await CandidateProfile.findOne({ userId: req.user._id });
   const candidateSkills = skills.length ? skills : (profile?.skills || []);
 
-  const raw = await gemini(`Compare candidate with job. Return ONLY valid JSON:
+  const fallback = {
+    matchScore: 70,
+    matchingSkills: candidateSkills.slice(0, 3),
+    missingSkills: [],
+    recommendation: "Your profile looks like a good fit. Complete your profile with more skills to get a precise match score.",
+    tips: ["Highlight relevant skills in your resume", "Prepare for a technical screening round", "Research the company before applying"],
+  };
+
+  try {
+    const raw = await gemini(`Compare candidate with job. Return ONLY valid JSON:
 {"matchScore":<0-100>,"matchingSkills":["..."],"missingSkills":["..."],"recommendation":"<2 sentences>","tips":["...","...","..."]}
 
 Candidate skills: ${candidateSkills.join(", ")}
 Experience: ${experience || "Not specified"}
 Job: ${jobDescription.slice(0, 1200)}`, 512);
-
-  res.json(parseJSON(raw, { matchScore: 70, matchingSkills: candidateSkills.slice(0, 3), missingSkills: [], recommendation: "Good fit for this role.", tips: ["Highlight relevant skills", "Prepare for technical round", "Research the company"] }));
+    res.json(parseJSON(raw, fallback));
+  } catch (err) {
+    logger.warn({ err }, "Gemini job-match failed, using fallback");
+    res.json(fallback);
+  }
 });
 
 // POST /api/ai/interview-prep
@@ -184,7 +237,30 @@ router.post("/interview-prep", async (req, res) => {
   const companyCtx = company ? ` at ${company}` : "";
   const descCtx = jobDescription ? `\n\nJob Description:\n${jobDescription.slice(0, 1500)}` : "";
 
-  const prompt = `You are a senior HR and technical interview expert. Generate exactly ${n} realistic, high-quality interview questions for a "${jobTitle}"${companyCtx} role.${descCtx}
+  const fallback = {
+    questions: [
+      { question: `Tell me about yourself and why you're applying for the ${jobTitle} role.`, type: "behavioral", difficulty: "easy", answer: "Structure your answer: current role → key achievements → why this opportunity. Keep it under 2 minutes.", tip: "Practice out loud before the interview." },
+      { question: `What relevant experience do you have for this ${jobTitle} position?`, type: "behavioral", difficulty: "easy", answer: "Use the STAR method: describe a specific Situation, your Task, the Actions you took, and the Result achieved.", tip: "Prepare 2–3 concrete examples in advance." },
+      { question: "Describe a challenging project and how you handled it.", type: "behavioral", difficulty: "medium", answer: "Focus on your decision-making process, teamwork, and what you learned. End with a positive outcome.", tip: "Pick a real challenge — authenticity resonates with interviewers." },
+      { question: "Where do you see yourself in 3–5 years?", type: "behavioral", difficulty: "easy", answer: "Show ambition aligned with the company's growth. Mention skills you want to develop and leadership you aspire to.", tip: "Research the company's growth trajectory before answering." },
+      { question: "Why do you want to work at our company?", type: "behavioral", difficulty: "medium", answer: "Mention specific things: the company's product, culture, mission, or recent achievement. Show you've done research.", tip: "Check LinkedIn, Glassdoor, and the company website beforehand." },
+      { question: "What are your greatest strengths?", type: "behavioral", difficulty: "easy", answer: "Pick 2–3 strengths directly relevant to the role. Back each with a brief example.", tip: "Don't just list — demonstrate with a real-life example." },
+      { question: "What is your biggest weakness?", type: "behavioral", difficulty: "medium", answer: "Choose a real but manageable weakness, explain the impact, and — critically — what you're doing to improve it.", tip: "Avoid clichés like 'I'm a perfectionist'." },
+      { question: "How do you handle tight deadlines or pressure?", type: "situational", difficulty: "medium", answer: "Describe your prioritization approach: list tasks, estimate effort, communicate blockers early, and deliver incrementally.", tip: "Give a specific past example to make this credible." },
+      { question: "Tell me about a time you worked in a team and faced conflict.", type: "behavioral", difficulty: "hard", answer: "Use STAR: describe the conflict objectively, your role in resolving it, and the positive outcome for the team.", tip: "Focus on your actions, not blaming others." },
+      { question: "Do you have any questions for us?", type: "behavioral", difficulty: "easy", answer: "Always ask! Good questions: role growth path, team structure, biggest challenges, what success looks like in 6 months.", tip: "Prepare at least 3 questions — it shows genuine interest." },
+    ].slice(0, n),
+    tips: [
+      "Research the company's products, mission, and recent news before the interview",
+      "Prepare 3–5 examples from past experience using the STAR method",
+      "Dress formally even for video calls — first impressions matter",
+      "Arrive 10 minutes early or join the video call 2 minutes before scheduled time",
+    ],
+    overview: `${jobTitle} interviews typically include HR screening, technical rounds, and a managerial discussion. Prepare concrete examples and brush up on core concepts.`,
+  };
+
+  try {
+    const prompt = `You are a senior HR and technical interview expert. Generate exactly ${n} realistic, high-quality interview questions for a "${jobTitle}"${companyCtx} role.${descCtx}
 
 Mix question types: behavioral, technical, and situational. Vary difficulty across easy, medium, and hard.
 
@@ -201,41 +277,20 @@ Return ONLY valid JSON — no markdown, no explanation:
   ],
   "tips": ["<interview tip 1>", "<interview tip 2>", "<interview tip 3>", "<interview tip 4>"],
   "overview": "<2-3 sentence overview of what to expect in a ${jobTitle} interview>"
-}
+}`;
 
-Rules:
-- Generate exactly ${n} questions
-- Mix: ~40% technical, ~40% behavioral, ~20% situational
-- Make answers detailed and actionable, not generic
-- Tips should be practical and specific to the role`;
-
-  const raw = await gemini(prompt, 3000);
-
-  const fallback = {
-    questions: Array.from({ length: n }, (_, i) => ({
-      question: `Question ${i + 1}: Tell us about your experience relevant to this ${jobTitle} role.`,
-      type: i % 3 === 0 ? "behavioral" : i % 3 === 1 ? "technical" : "situational",
-      difficulty: i % 3 === 0 ? "easy" : i % 3 === 1 ? "medium" : "hard",
-      answer: "Structure your answer using the STAR method: Situation, Task, Action, Result.",
-      tip: "Take a moment to think before answering.",
-    })),
-    tips: [
-      "Research the company thoroughly before the interview",
-      "Prepare 2-3 concrete examples from your past experience",
-      "Ask thoughtful questions at the end of each round",
-      "Practice your answers out loud to build confidence",
-    ],
-    overview: `${jobTitle} interviews typically include a mix of technical and behavioral rounds. Prepare concrete examples using the STAR method.`,
-  };
-
-  res.json(parseJSON(raw, fallback));
+    const raw = await gemini(prompt, 3000);
+    res.json(parseJSON(raw, fallback));
+  } catch (err) {
+    logger.warn({ err }, "Gemini interview-prep failed, using fallback");
+    res.json(fallback);
+  }
 });
 
-// ── Simple in-memory cache (avoids re-hitting Gemini for same job+candidate) ──
 const matchCache = new Map();
-const MATCH_TTL = 15 * 60 * 1000; // 15 minutes
+const MATCH_TTL = 15 * 60 * 1000;
 
-// POST /api/ai/match-score  (protected — candidate only)
+// POST /api/ai/match-score
 router.post("/match-score", protect, requireRole("candidate"), async (req, res) => {
   const { jobId } = req.body;
   if (!jobId) return res.status(400).json({ message: "jobId required" });
@@ -243,37 +298,22 @@ router.post("/match-score", protect, requireRole("candidate"), async (req, res) 
   const userId = req.user.id || req.user._id;
   const cacheKey = `${userId}:${jobId}`;
 
-  // Return cached result if fresh
   const cached = matchCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < MATCH_TTL) {
     return res.json({ ...cached.data, cached: true });
   }
 
-  // Fetch job and candidate profile in parallel
-  const [Job, CandidateProfile] = await Promise.all([
+  const [Job, CandidateProfileModel] = await Promise.all([
     import("../models/Job.js").then(m => m.default),
     import("../models/CandidateProfile.js").then(m => m.default),
   ]);
 
   const [job, profile] = await Promise.all([
     Job.findById(jobId).select("title skills experienceRequired category requirements").lean(),
-    CandidateProfile.findOne({ userId }).select("skills experience currentTitle education").lean(),
+    CandidateProfileModel.findOne({ userId }).select("skills experience currentTitle education").lean(),
   ]);
 
   if (!job) return res.status(404).json({ message: "Job not found" });
-
-  // Build ultra-short prompt to minimise tokens
-  const jobSkills   = (job.skills || []).slice(0, 8).join(", ") || "not specified";
-  const candSkills  = (profile?.skills || []).slice(0, 10).join(", ") || "not specified";
-  const candExp     = profile?.experience || "fresher";
-  const candTitle   = profile?.currentTitle || "candidate";
-  const jobExp      = job.experienceRequired || "any";
-
-  const prompt =
-    `Job title: "${job.title}". Required skills: ${jobSkills}. Exp needed: ${jobExp}.\n` +
-    `Candidate skills: ${candSkills}. Candidate exp: ${candExp}. Current title: ${candTitle}.\n` +
-    `Give match score 0-100 and brief analysis. Return ONLY JSON, no markdown:\n` +
-    `{"score":N,"strengths":["max 10 words","max 10 words"],"gaps":["max 10 words","max 10 words"],"verdict":"max 12 words"}`;
 
   const fallback = {
     score: 55,
@@ -282,17 +322,31 @@ router.post("/match-score", protect, requireRole("candidate"), async (req, res) 
     verdict: "Update your profile to get a precise score",
   };
 
-  const raw = await gemini(prompt, 150);
-  const data = parseJSON(raw, fallback);
+  try {
+    const jobSkills  = (job.skills || []).slice(0, 8).join(", ") || "not specified";
+    const candSkills = (profile?.skills || []).slice(0, 10).join(", ") || "not specified";
+    const candExp    = profile?.experience || "fresher";
+    const candTitle  = profile?.currentTitle || "candidate";
+    const jobExp     = job.experienceRequired || "any";
 
-  // Clamp score to 0–100
-  if (typeof data.score === "number") data.score = Math.max(0, Math.min(100, data.score));
+    const prompt =
+      `Job title: "${job.title}". Required skills: ${jobSkills}. Exp needed: ${jobExp}.\n` +
+      `Candidate skills: ${candSkills}. Candidate exp: ${candExp}. Current title: ${candTitle}.\n` +
+      `Give match score 0-100 and brief analysis. Return ONLY JSON, no markdown:\n` +
+      `{"score":N,"strengths":["max 10 words","max 10 words"],"gaps":["max 10 words","max 10 words"],"verdict":"max 12 words"}`;
 
-  matchCache.set(cacheKey, { ts: Date.now(), data });
-  res.json(data);
+    const raw = await gemini(prompt, 150);
+    const data = parseJSON(raw, fallback);
+    if (typeof data.score === "number") data.score = Math.max(0, Math.min(100, data.score));
+    matchCache.set(cacheKey, { ts: Date.now(), data });
+    res.json(data);
+  } catch (err) {
+    logger.warn({ err }, "Gemini match-score failed, using fallback");
+    res.json(fallback);
+  }
 });
 
-// POST /api/ai/cover-letter  (protected — candidate only, free-plan conscious)
+// POST /api/ai/cover-letter
 router.post("/cover-letter", protect, requireRole("candidate"), async (req, res) => {
   const { jobId } = req.body;
   if (!jobId) return res.status(400).json({ message: "jobId required" });
@@ -311,20 +365,35 @@ router.post("/cover-letter", protect, requireRole("candidate"), async (req, res)
 
   if (!job) return res.status(404).json({ message: "Job not found" });
 
-  const name      = user?.name || "the applicant";
-  const candTitle = profile?.currentTitle || "professional";
+  const name       = user?.name || "the applicant";
+  const candTitle  = profile?.currentTitle || "professional";
   const candSkills = (profile?.skills || []).slice(0, 5).join(", ") || "various skills";
-  const candExp   = profile?.experience ? ` with ${profile.experience} experience` : "";
-  const jobSkills = (job.skills || []).slice(0, 3).join(", ");
+  const candExp    = profile?.experience ? ` with ${profile.experience} experience` : "";
+  const jobSkills  = (job.skills || []).slice(0, 3).join(", ");
 
-  // Ultra-compact prompt — ~70 input tokens, 280 output max
-  const prompt =
-    `Write a professional 3-paragraph cover letter for ${name}, a ${candTitle}${candExp}.\n` +
-    `Role: "${job.title}" at ${job.company}. My skills: ${candSkills}.${jobSkills ? ` Role needs: ${jobSkills}.` : ""}\n` +
-    `Indian professional tone. Under 140 words. Only the letter body — no address/date/subject.`;
+  const fallbackLetter = `Dear Hiring Manager,
 
-  const text = await gemini(prompt, 280);
-  res.json({ coverLetter: (text || "").trim() });
+I am writing to express my strong interest in the ${job.title} position at ${job.company}. With my background as a ${candTitle}${candExp} and expertise in ${candSkills}, I am confident I can make a meaningful contribution to your team.
+
+Throughout my career, I have consistently delivered results by applying my skills effectively and collaborating with cross-functional teams. I am particularly drawn to ${job.company} because of its reputation for innovation and growth in the industry.
+
+I would welcome the opportunity to discuss how my experience aligns with your requirements. Thank you for considering my application.
+
+Warm regards,
+${name}`;
+
+  try {
+    const prompt =
+      `Write a professional 3-paragraph cover letter for ${name}, a ${candTitle}${candExp}.\n` +
+      `Role: "${job.title}" at ${job.company}. My skills: ${candSkills}.${jobSkills ? ` Role needs: ${jobSkills}.` : ""}\n` +
+      `Indian professional tone. Under 140 words. Only the letter body — no address/date/subject.`;
+
+    const text = await gemini(prompt, 280);
+    res.json({ coverLetter: (text || "").trim() });
+  } catch (err) {
+    logger.warn({ err }, "Gemini cover-letter failed, using fallback");
+    res.json({ coverLetter: fallbackLetter.trim() });
+  }
 });
 
 // POST /api/ai/resume-tips-by-role
@@ -332,30 +401,7 @@ router.post("/resume-tips-by-role", async (req, res) => {
   const { category } = req.body;
   if (!category) return res.status(400).json({ message: "Category required" });
 
-  const prompt = `You are an expert Indian recruitment consultant. Give highly specific, actionable resume tips for a candidate applying to "${category}" jobs in India.
-
-Return ONLY valid JSON — no markdown, no explanation:
-{
-  "headline": "<short motivating headline for this category, e.g. 'Stand Out in IT/Software Roles'>",
-  "tips": [
-    { "title": "<short tip title>", "desc": "<1-2 sentence actionable advice specific to ${category} roles in India>" },
-    { "title": "<short tip title>", "desc": "<1-2 sentence actionable advice>" },
-    { "title": "<short tip title>", "desc": "<1-2 sentence actionable advice>" },
-    { "title": "<short tip title>", "desc": "<1-2 sentence actionable advice>" },
-    { "title": "<short tip title>", "desc": "<1-2 sentence actionable advice>" }
-  ],
-  "keywords": ["<top ATS keyword for ${category}>", "<keyword>", "<keyword>", "<keyword>", "<keyword>", "<keyword>"],
-  "doList": ["<one specific DO for ${category} resume>", "<DO>", "<DO>"],
-  "dontList": ["<one specific DON'T for ${category} resume>", "<DON'T>", "<DON'T>"]
-}
-
-Rules:
-- Tips must be specific to "${category}" industry — not generic
-- Keywords must be real ATS terms recruiters search for in this category
-- Indian job market context (mention Indian companies/platforms where relevant)
-- Keep each tip desc under 30 words`;
-
-  const fallbacks = {
+  const builtinFallbacks = {
     "IT/Software": {
       headline: "Get Shortlisted for Top IT/Software Roles",
       tips: [
@@ -384,22 +430,46 @@ Rules:
     },
   };
 
-  const raw = await gemini(prompt, 1000);
-  const fallback = fallbacks[category] || {
-    headline: `Resume Tips for ${category} Roles`,
+  const genericFallback = {
+    headline: `Stand Out in ${category} Roles`,
     tips: [
       { title: "Tailor your resume per JD", desc: "Copy exact keywords from the job description to pass ATS filters used by top Indian employers." },
       { title: "Lead with a strong summary", desc: "Write 2-3 lines that match your profile to the role — recruiters spend 6 seconds on first scan." },
       { title: "Quantify your achievements", desc: "Replace 'managed a team' with 'managed a team of 8, delivered project 2 weeks ahead of schedule'." },
       { title: "Keep formatting clean and ATS-safe", desc: "Avoid tables, columns, and images — many Indian company ATS systems can't parse them correctly." },
-      { title: "Add a LinkedIn and relevant certifications", desc: "Include your LinkedIn URL and any industry certifications to boost credibility with HR teams." },
+      { title: "Add LinkedIn and certifications", desc: "Include your LinkedIn URL and any industry certifications to boost credibility with HR teams." },
     ],
     keywords: ["Results-driven", "Cross-functional", "Stakeholder management", "Process improvement", "Team leadership", "KPI"],
     doList: ["One-page resume if under 5 years experience", "Use bullet points, not paragraphs", "Include location and notice period"],
     dontList: ["Use a photo or date of birth (not required in India for most roles)", "Use jargon without context", "Ignore spelling and grammar"],
   };
 
-  res.json({ category, ...parseJSON(raw, fallback) });
+  const fallback = builtinFallbacks[category] || genericFallback;
+
+  try {
+    const prompt = `You are an expert Indian recruitment consultant. Give highly specific, actionable resume tips for a candidate applying to "${category}" jobs in India.
+
+Return ONLY valid JSON — no markdown, no explanation:
+{
+  "headline": "<short motivating headline for this category>",
+  "tips": [
+    { "title": "<short tip title>", "desc": "<1-2 sentence actionable advice specific to ${category} roles in India>" },
+    { "title": "<short tip title>", "desc": "<1-2 sentence actionable advice>" },
+    { "title": "<short tip title>", "desc": "<1-2 sentence actionable advice>" },
+    { "title": "<short tip title>", "desc": "<1-2 sentence actionable advice>" },
+    { "title": "<short tip title>", "desc": "<1-2 sentence actionable advice>" }
+  ],
+  "keywords": ["<top ATS keyword for ${category}>", "<keyword>", "<keyword>", "<keyword>", "<keyword>", "<keyword>"],
+  "doList": ["<one specific DO for ${category} resume>", "<DO>", "<DO>"],
+  "dontList": ["<one specific DON'T for ${category} resume>", "<DON'T>", "<DON'T>"]
+}`;
+
+    const raw = await gemini(prompt, 1000);
+    res.json({ category, ...parseJSON(raw, fallback) });
+  } catch (err) {
+    logger.warn({ err }, "Gemini resume-tips-by-role failed, using fallback");
+    res.json({ category, ...fallback });
+  }
 });
 
 export default router;
