@@ -1,0 +1,86 @@
+GET https://54b110aa-50e7-4f03-a1b9-1e288851cb14-00-8jcx5w7fy6lx.pike.replit.dev/admin/login net::ERR_HTTP_RESPONSE_CODE_FAILURE 502 (Bad Gateway) bhai mujhe nhi pata kuch bhi kro bas admin pannel show kro mujhe abhi ke abhi also at the time of download resume jo template h wo apply nhi ho raha h no design
+
+6 minutes ago
+
+Planning admin panel integration approach (57 seconds)
+Two issues to fix simultaneously — the persistent admin 502 and the resume template styling. Let me look at both right now.
+
+
+3 actions
+Let me read the resume builder's download section and check the backend for the proxy approach, all in parallel.
+
+
+7 actions
+I'll fix both issues in parallel. The admin 502 needs a fundamentally different approach — routing through Express instead of Vite. And the resume PDF is missing Tailwind CSS in the print window.
+
+
+3 actions
+Fixing both simultaneously — installing the proxy middleware for admin and fixing the resume PDF styling.
+
+
+5 actions
+Good, http-proxy-middleware installed. Now let me add the admin proxy to Express and update the frontend config.
+
+
+6 actions
+Now restart both Backend and Frontend to pick up the changes.    
+
+
+
+and remove proxy agar work nhi kr raha h to kyuki mujhe admin dashboard nhi dikh raha h duffer ya to thik krdo ya remove kro proxy aur 10 baar check kr lena ki thik hua h ya nhi   
+
+
+
+and 
+
+apply pr click krne ke baad ye show nhi krna h Apply for Machine Learning Engineer
+Google India · Hyderabad, Telangana
+
+Cover Letter (optional)
+Write with AI
+Tell us why you're a great fit…
+Cancel
+Submit   ye show krna h mujhe Apply for Machine Learning Engineer
+at Google India · Hyderabad, Telangana
+
+Personal Details
+Full Name *
+Your full name
+Mobile Number *
++91 XXXXX XXXXX
+Email *
+you@email.com
+Address
+City, State
+Job Preferences
+Position Applied For
+Machine Learning Engineer
+Preferred Location
+e.g. Noida, Delhi
+Expected Salary
+e.g. ₹8 LPA
+Joining Availability
+e.g. Immediate / 30 days
+Education
+Highest Qualification
+e.g. B.Tech, MBA
+College Name
+College / University
+Passing Year
+e.g. 2022
+Experience
+Total Experience
+e.g. 3 years
+Current Company
+Company name / Fresher
+Current Salary
+e.g. ₹5 LPA
+Skills & Resume
+Skills (comma separated)
+e.g. React, Node.js, Python
+
+Resume Attached (I have uploaded my resume to my profile)
+Cover Letter (Optional)
+Why are you a great fit for this role? Highlight your most relevant experience...
+Submit Application
+* Full Name, Mobile and Email are required    har jagah jaha apply likha h ya apply now in jobs

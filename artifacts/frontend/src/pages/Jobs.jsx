@@ -599,6 +599,14 @@ export default function Jobs() {
   const [resumeFile, setResumeFile] = useState(null);
   const [resumeUploading, setResumeUploading] = useState(false);
   const fileInputRef = useRef(null);
+  const [appForm, setAppForm] = useState({
+    fullName: "", mobile: "", email: "", address: "",
+    positionApplied: "", preferredLocation: "", expectedSalary: "", joiningAvailability: "",
+    highestQualification: "", collegeName: "", passingYear: "",
+    totalExperience: "", currentCompany: "", currentSalary: "",
+    skills: "",
+  });
+  const setAppField = (k, v) => setAppForm(f => ({ ...f, [k]: v }));
 
   useEffect(() => {
     const s = parseParamsToState(woSearch || window.location.search);
@@ -653,7 +661,16 @@ export default function Jobs() {
       }
       return fetchApi("/applications", {
         method: "POST",
-        body: JSON.stringify({ jobId, coverLetter, resumeAttached: attached }),
+        body: JSON.stringify({
+          jobId, coverLetter, resumeAttached: attached,
+          fullName: appForm.fullName, mobile: appForm.mobile, email: appForm.email, address: appForm.address,
+          positionApplied: appForm.positionApplied, preferredLocation: appForm.preferredLocation,
+          expectedSalary: appForm.expectedSalary, joiningAvailability: appForm.joiningAvailability,
+          highestQualification: appForm.highestQualification, collegeName: appForm.collegeName,
+          passingYear: appForm.passingYear, totalExperience: appForm.totalExperience,
+          currentCompany: appForm.currentCompany, currentSalary: appForm.currentSalary,
+          skills: appForm.skills,
+        }),
       });
     },
     onSuccess: () => {
@@ -664,6 +681,7 @@ export default function Jobs() {
       setCoverLetter("");
       setResumeFile(null);
       setResumeMode("profile");
+      setAppForm({ fullName:"", mobile:"", email:"", address:"", positionApplied:"", preferredLocation:"", expectedSalary:"", joiningAvailability:"", highestQualification:"", collegeName:"", passingYear:"", totalExperience:"", currentCompany:"", currentSalary:"", skills:"" });
     },
     onError: err => toast({ title:"Failed", description:err.message, variant:"destructive" }),
   });
@@ -681,7 +699,24 @@ export default function Jobs() {
     setCoverLetter("");
     setResumeFile(null);
     setResumeMode("profile");
-  }, [user, isCandidate, toast, setLocation]);
+    setAppForm({
+      fullName: candidateProfile?.name || user?.name || "",
+      mobile: candidateProfile?.phone || "",
+      email: candidateProfile?.email || user?.email || "",
+      address: candidateProfile?.location || "",
+      positionApplied: job?.title || "",
+      preferredLocation: job?.location || "",
+      expectedSalary: "",
+      joiningAvailability: "",
+      highestQualification: candidateProfile?.education || "",
+      collegeName: "",
+      passingYear: "",
+      totalExperience: candidateProfile?.experience || "",
+      currentCompany: "",
+      currentSalary: "",
+      skills: (candidateProfile?.skills || []).join(", "),
+    });
+  }, [user, isCandidate, toast, setLocation, candidateProfile]);
 
   const toggle = useCallback((key, value) => {
     setFilters(prev => ({ ...prev, [key]: prev[key].includes(value) ? prev[key].filter(v => v !== value) : [...prev[key], value] }));
@@ -737,7 +772,7 @@ export default function Jobs() {
 
       {/* Apply Dialog */}
       <Dialog open={!!applyDialogJob} onOpenChange={open => { if (!open) { setApplyDialogJob(null); setResumeFile(null); setResumeMode("profile"); } }}>
-        <DialogContent className="sm:max-w-lg rounded-2xl max-h-[92vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-xl rounded-2xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base">
               <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
@@ -746,125 +781,163 @@ export default function Jobs() {
               Apply for {applyDialogJob?.title}
             </DialogTitle>
             <DialogDescription className="text-xs">
-              {applyDialogJob?.company || applyDialogJob?.employer?.company} · {applyDialogJob?.location}
+              at {applyDialogJob?.company || applyDialogJob?.employer?.company} · {applyDialogJob?.location}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-5 pt-1">
-            {/* ── Applicant info banner ── */}
-            {candidateProfile && (
-              <div className="flex items-center gap-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/40 rounded-xl px-4 py-3">
-                <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
-                  {(candidateProfile.name || user?.name || "U").charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-200 truncate">{candidateProfile.name || user?.name}</p>
-                  <p className="text-xs text-indigo-600 dark:text-indigo-400 truncate">{candidateProfile.email || user?.email}</p>
-                </div>
-                <span className="ml-auto text-[10px] font-semibold text-indigo-500 bg-indigo-100 dark:bg-indigo-900/40 px-2 py-0.5 rounded-full shrink-0">Applying as Candidate</span>
-              </div>
-            )}
 
-            {/* ── Resume Section ── */}
+            {/* ── Personal Details ── */}
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">Resume</h3>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">Personal Details</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Full Name <span className="text-red-500">*</span></label>
+                  <Input value={appForm.fullName} onChange={e => setAppField("fullName", e.target.value)} placeholder="Your full name" className="h-9 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Mobile Number <span className="text-red-500">*</span></label>
+                  <Input value={appForm.mobile} onChange={e => setAppField("mobile", e.target.value)} placeholder="+91 XXXXX XXXXX" className="h-9 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Email <span className="text-red-500">*</span></label>
+                  <Input value={appForm.email} onChange={e => setAppField("email", e.target.value)} placeholder="you@email.com" className="h-9 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Address</label>
+                  <Input value={appForm.address} onChange={e => setAppField("address", e.target.value)} placeholder="City, State" className="h-9 text-sm" />
+                </div>
+              </div>
+            </div>
 
-              {/* Mode toggle */}
-              <div className="flex gap-2 mb-3">
-                <button
-                  type="button"
-                  onClick={() => setResumeMode("profile")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-semibold transition-all ${resumeMode === "profile" ? "bg-indigo-600 border-indigo-600 text-white shadow-sm" : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-indigo-300 hover:text-indigo-600"}`}
-                >
-                  <FileText className="w-4 h-4" /> Use from Profile
+            {/* ── Job Preferences ── */}
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">Job Preferences</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Position Applied For</label>
+                  <Input value={appForm.positionApplied} onChange={e => setAppField("positionApplied", e.target.value)} placeholder="e.g. Machine Learning Engineer" className="h-9 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Preferred Location</label>
+                  <Input value={appForm.preferredLocation} onChange={e => setAppField("preferredLocation", e.target.value)} placeholder="e.g. Noida, Delhi" className="h-9 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Expected Salary</label>
+                  <Input value={appForm.expectedSalary} onChange={e => setAppField("expectedSalary", e.target.value)} placeholder="e.g. ₹8 LPA" className="h-9 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Joining Availability</label>
+                  <Input value={appForm.joiningAvailability} onChange={e => setAppField("joiningAvailability", e.target.value)} placeholder="e.g. Immediate / 30 days" className="h-9 text-sm" />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Education ── */}
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">Education</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Highest Qualification</label>
+                  <Input value={appForm.highestQualification} onChange={e => setAppField("highestQualification", e.target.value)} placeholder="e.g. B.Tech, MBA" className="h-9 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">College Name</label>
+                  <Input value={appForm.collegeName} onChange={e => setAppField("collegeName", e.target.value)} placeholder="College / University" className="h-9 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Passing Year</label>
+                  <Input value={appForm.passingYear} onChange={e => setAppField("passingYear", e.target.value)} placeholder="e.g. 2022" className="h-9 text-sm" />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Experience ── */}
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">Experience</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Total Experience</label>
+                  <Input value={appForm.totalExperience} onChange={e => setAppField("totalExperience", e.target.value)} placeholder="e.g. 3 years" className="h-9 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Current Company</label>
+                  <Input value={appForm.currentCompany} onChange={e => setAppField("currentCompany", e.target.value)} placeholder="Company name / Fresher" className="h-9 text-sm" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Current Salary</label>
+                  <Input value={appForm.currentSalary} onChange={e => setAppField("currentSalary", e.target.value)} placeholder="e.g. ₹5 LPA" className="h-9 text-sm" />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Skills & Resume ── */}
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">Skills &amp; Resume</h3>
+              <div className="mb-3">
+                <label className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1 block">Skills (comma separated)</label>
+                <Input value={appForm.skills} onChange={e => setAppField("skills", e.target.value)} placeholder="e.g. React, Node.js, Python" className="h-9 text-sm" />
+              </div>
+
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setResumeMode("profile")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border text-sm font-semibold transition-all ${resumeMode === "profile" ? "bg-indigo-600 border-indigo-600 text-white shadow-sm" : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-indigo-300 hover:text-indigo-600"}`}>
+                  <FileText className="w-4 h-4" /> Resume from Profile
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setResumeMode("upload")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-semibold transition-all ${resumeMode === "upload" ? "bg-indigo-600 border-indigo-600 text-white shadow-sm" : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-indigo-300 hover:text-indigo-600"}`}
-                >
+                <button type="button" onClick={() => setResumeMode("upload")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl border text-sm font-semibold transition-all ${resumeMode === "upload" ? "bg-indigo-600 border-indigo-600 text-white shadow-sm" : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-indigo-300 hover:text-indigo-600"}`}>
                   <Upload className="w-4 h-4" /> Upload New
                 </button>
               </div>
 
-              {/* Profile resume */}
-              {resumeMode === "profile" && (
-                <div>
-                  {hasProfileResume ? (
-                    <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-4 py-3">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
-                        <Check className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Resume on file</p>
-                        <p className="text-xs text-emerald-600 dark:text-emerald-400">Your uploaded resume will be shared with the employer</p>
-                      </div>
+              <div className="mt-2">
+                {resumeMode === "profile" && (
+                  hasProfileResume ? (
+                    <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-4 py-2.5">
+                      <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <p className="text-xs text-emerald-700 dark:text-emerald-300">Resume on file — will be shared with employer</p>
                     </div>
                   ) : (
-                    <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-4 py-3">
-                      <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center shrink-0 mt-0.5">
-                        <FileText className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">No resume in profile</p>
-                        <p className="text-xs text-amber-600 dark:text-amber-400">Switch to "Upload New" to attach a resume, or apply without one</p>
-                      </div>
+                    <div className="flex items-center gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-4 py-2.5">
+                      <FileText className="w-4 h-4 text-amber-500 shrink-0" />
+                      <p className="text-xs text-amber-700 dark:text-amber-300">No resume uploaded — switch to "Upload New" or continue without one</p>
                     </div>
-                  )}
-                </div>
-              )}
-
-              {/* Upload new resume */}
-              {resumeMode === "upload" && (
-                <div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    className="hidden"
-                    onChange={e => setResumeFile(e.target.files?.[0] || null)}
-                  />
-                  {resumeFile ? (
-                    <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-4 py-3">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
-                        <Check className="w-4 h-4 text-white" />
+                  )
+                )}
+                {resumeMode === "upload" && (
+                  <>
+                    <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={e => setResumeFile(e.target.files?.[0] || null)} />
+                    {resumeFile ? (
+                      <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-4 py-2.5">
+                        <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <p className="text-xs font-medium text-emerald-700 dark:text-emerald-300 flex-1 truncate">{resumeFile.name}</p>
+                        <button type="button" onClick={() => setResumeFile(null)} className="text-emerald-400 hover:text-red-500 transition-colors"><X className="w-3.5 h-3.5" /></button>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 truncate">{resumeFile.name}</p>
-                        <p className="text-xs text-emerald-600 dark:text-emerald-400">{(resumeFile.size / 1024).toFixed(0)} KB · Ready to upload</p>
-                      </div>
-                      <button type="button" onClick={() => setResumeFile(null)} className="text-emerald-500 hover:text-red-500 transition-colors">
-                        <X className="w-4 h-4" />
+                    ) : (
+                      <button type="button" onClick={() => fileInputRef.current?.click()}
+                        className="w-full border-2 border-dashed border-indigo-200 dark:border-indigo-800 rounded-xl py-4 flex flex-col items-center gap-1.5 text-indigo-400 hover:border-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 transition-all">
+                        <Upload className="w-5 h-5 text-indigo-400" />
+                        <p className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">Click to upload resume</p>
+                        <p className="text-[11px] text-gray-400">PDF, DOC, DOCX · Max 5MB</p>
                       </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full border-2 border-dashed border-indigo-200 dark:border-indigo-800 rounded-xl py-7 flex flex-col items-center gap-2 text-indigo-400 hover:border-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 transition-all group"
-                    >
-                      <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-                        <Upload className="w-5 h-5 text-indigo-500" />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Click to upload resume</p>
-                        <p className="text-xs text-gray-400 mt-0.5">PDF, DOC, DOCX · Max 5MB</p>
-                      </div>
-                    </button>
-                  )}
-                </div>
-              )}
+                    )}
+                  </>
+                )}
+              </div>
             </div>
 
             {/* ── Cover Letter ── */}
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">Cover Letter <span className="font-normal normal-case text-gray-400">(optional)</span></h3>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">Cover Letter <span className="font-normal normal-case text-gray-400">(Optional)</span></h3>
               <AICoverLetterField
                 jobId={applyDialogJob?.id || applyDialogJob?._id}
                 value={coverLetter}
                 onChange={setCoverLetter}
               />
             </div>
+
+            {/* required note */}
+            <p className="text-[11px] text-gray-400">* Full Name, Mobile and Email are required</p>
 
             {/* ── Actions ── */}
             <div className="flex gap-3 pt-1">
@@ -873,13 +946,19 @@ export default function Jobs() {
               </Button>
               <Button
                 className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 font-semibold"
-                onClick={() => applyMutation.mutate({ jobId: applyDialogJob.id || applyDialogJob._id, coverLetter })}
+                onClick={() => {
+                  if (!appForm.fullName.trim() || !appForm.mobile.trim() || !appForm.email.trim()) {
+                    toast({ title: "Required fields missing", description: "Please fill Full Name, Mobile and Email.", variant: "destructive" });
+                    return;
+                  }
+                  applyMutation.mutate({ jobId: applyDialogJob.id || applyDialogJob._id, coverLetter });
+                }}
                 disabled={applyMutation.isPending || resumeUploading}
               >
                 {applyMutation.isPending || resumeUploading ? (
                   <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />{resumeUploading ? "Uploading..." : "Submitting..."}</>
                 ) : (
-                  <><Send className="w-4 h-4" />Apply Now</>
+                  <><Send className="w-4 h-4" />Submit Application</>
                 )}
               </Button>
             </div>

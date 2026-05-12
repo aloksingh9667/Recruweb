@@ -774,6 +774,18 @@ export default function ResumeBuilder() {
     const w = window.open("", "_blank");
     if (!w) return;
     const isCreative = selectedTemplate === "creative";
+
+    let cssText = "";
+    try {
+      for (const sheet of Array.from(document.styleSheets)) {
+        try {
+          for (const rule of Array.from(sheet.cssRules || [])) {
+            cssText += rule.cssText + "\n";
+          }
+        } catch (_) {}
+      }
+    } catch (_) {}
+
     w.document.write(`<!DOCTYPE html>
 <html>
 <head>
@@ -781,16 +793,7 @@ export default function ResumeBuilder() {
   <title>${formData.fullName || "Resume"}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=EB+Garamond:wght@400;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"><\/script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { serif: ["EB Garamond","Georgia","serif"], sans: ["Inter","Arial","sans-serif"] }
-        }
-      }
-    }
-  <\/script>
+  <style>${cssText}<\/style>
   <style>
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     body { background: white; margin: 0 auto; max-width: 860px; padding: ${isCreative ? "0" : "32px"}; font-family: Inter, Arial, sans-serif; }
@@ -800,9 +803,9 @@ export default function ResumeBuilder() {
 <body>
   ${el.innerHTML}
   <script>
-    window.onload = function() {
-      setTimeout(function() { window.print(); setTimeout(function(){ window.close(); }, 500); }, 900);
-    };
+    document.fonts.ready.then(function() {
+      setTimeout(function() { window.print(); setTimeout(function(){ window.close(); }, 500); }, 400);
+    });
   <\/script>
 </body>
 </html>`);
