@@ -32,13 +32,13 @@ args = "Admin"
 name = "Backend"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "pnpm --filter @workspace/backend run dev"
 waitForPort = 8080
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [[workflows.workflow]]
 name = "Frontend"
@@ -75,18 +75,6 @@ timeoutMs = 20000
 [[ports]]
 localPort = 3002
 externalPort = 3002
-
-[[ports]]
-localPort = 5000
-externalPort = 5000
-
-[[ports]]
-localPort = 8080
-externalPort = 8080
-
-[[ports]]
-localPort = 8081
-externalPort = 80
 
 [[ports]]
 localPort = 21329
