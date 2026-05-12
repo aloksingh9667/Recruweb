@@ -61,7 +61,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=3002 BASE_PATH=/ pnpm --filter @workspace/admin run dev"
+args = "PORT=3002 BASE_PATH=/admin pnpm --filter @workspace/admin run dev"
 waitForPort = 3002
 
 [agent]
@@ -75,10 +75,6 @@ timeoutMs = 20000
 [[ports]]
 localPort = 3002
 externalPort = 3002
-
-[[ports]]
-localPort = 8080
-externalPort = 8080
 
 [[ports]]
 localPort = 8081

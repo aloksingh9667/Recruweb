@@ -70,6 +70,12 @@ export default defineConfig({
     strictPort: true,
     host: "0.0.0.0",
     allowedHosts: true,
+    proxy: {
+      "/admin": {
+        target: "http://localhost:3002",
+        changeOrigin: true,
+      },
+    },
     fs: {
       strict: true,
     },
