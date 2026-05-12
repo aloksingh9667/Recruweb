@@ -790,14 +790,14 @@ export default function ResumeBuilder() {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>${formData.fullName || "Resume"}</title>
+  <title>Resume</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=EB+Garamond:wght@400;600;700&display=swap" rel="stylesheet">
   <style>${cssText}<\/style>
   <style>
     * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
     body { background: white; margin: 0 auto; max-width: 860px; padding: ${isCreative ? "0" : "32px"}; font-family: Inter, Arial, sans-serif; }
-    @media print { @page { margin: 10mm; size: A4; } body { padding: 0; max-width: 100%; } }
+    @media print { @page { margin: 0; size: A4; } body { padding: ${isCreative ? "0" : "12mm"}; max-width: 100%; } }
   </style>
 </head>
 <body>
