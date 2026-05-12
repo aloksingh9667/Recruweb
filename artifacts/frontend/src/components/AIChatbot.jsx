@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { fetchApi } from "@/lib/api";
 import { useLocation } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
 import { X, Send, Mic, MicOff, Volume2, VolumeX, Minimize2, Sparkles, ChevronDown, RotateCcw } from "lucide-react";
 
 function TypingDots() {
@@ -102,7 +103,27 @@ function parseJobIntent(msg) {
   return { location, category, keyword, experience };
 }
 
+// ── Salary intent parser ────────────────────────────────────────────────────
+const HAS_SALARY_RE = /\b(salary|ctc|package|lakh|lpa|lac|pay|income|rupee|₹)\b/i;
+function parseSalaryIntent(msg) {
+  if (!HAS_SALARY_RE.test(msg)) return {};
+  const lower = msg.toLowerCase();
+  const matches = [...lower.matchAll(/(\d+(?:\.\d+)?)\s*(?:lakh|lpa|lac|l)\b/g)];
+  const nums = matches.map(m => parseFloat(m[1]));
+  if (!nums.length) return {};
+  const isAbove = /\b(above|more than|over|zyada|upar|minimum|min|atleast|at least|greater)\b/i.test(lower);
+  const isBelow = /\b(below|less than|under|maximum|max|upto|up to|tak|se kam)\b/i.test(lower);
+  if (nums.length >= 2) return { salaryMin: Math.min(...nums), salaryMax: Math.max(...nums) };
+  if (isAbove) return { salaryMin: nums[0] };
+  if (isBelow) return { salaryMax: nums[0] };
+  return { salaryMin: nums[0] };
+}
+
+// ── "My field" intent ───────────────────────────────────────────────────────
+const MY_FIELD_RE = /\b(my field|mera field|meri field|apna field|my interest|my domain|apna domain|in my field|jobs.*my field|show.*my field)\b/i;
+
 export function AIChatbot() {
+  const { user } = useAuth();
   const [open, setOpen]           = useState(false);
   const [minimized, setMin]       = useState(false);
   const [messages, setMessages]   = useState([]);
@@ -119,11 +140,12 @@ export function AIChatbot() {
   const [voiceBanner, setVoiceBanner] = useState("");
   const [inputMode, setInputMode] = useState("text");
 
-  const endRef        = useRef(null);
-  const inputRef      = useRef(null);
-  const recRef        = useRef(null);
-  const sendRef       = useRef(null);
-  const transcriptRef = useRef("");
+  const endRef           = useRef(null);
+  const inputRef         = useRef(null);
+  const recRef           = useRef(null);
+  const sendRef          = useRef(null);
+  const transcriptRef    = useRef("");
+  const awaitingFieldRef = useRef(false);
   const [, setLocation] = useLocation();
 
   useEffect(() => {
@@ -209,7 +231,58 @@ export function AIChatbot() {
     setLoading(true);
     setSuggestions([]);
 
+    // ── Awaiting field input from previous "my field" question ──
+    if (awaitingFieldRef.current) {
+      awaitingFieldRef.current = false;
+      const lower = msg.toLowerCase();
+      let category = msg.trim();
+      for (const [key, val] of Object.entries(CATEGORY_MAP)) {
+        if (lower.includes(key)) { category = val; break; }
+      }
+      const QUICK = { it: "IT/Software", software: "IT/Software", tech: "IT/Software", sales: "Sales", marketing: "Marketing", finance: "Finance", hr: "HR", data: "Data Science", design: "Design", operations: "Operations", healthcare: "Healthcare", legal: "Legal" };
+      for (const [key, val] of Object.entries(QUICK)) {
+        if (lower === key || lower.startsWith(key + " ") || lower.endsWith(" " + key)) { category = val; break; }
+      }
+      const params = new URLSearchParams();
+      params.set("category", category);
+      setMessages(prev => [...prev, {
+        role: "assistant", ts: Date.now(),
+        content: `🔍 Finding **${category}** jobs for you — taking you there now!`,
+      }]);
+      setSuggestions([`Fresher ${category} jobs`, `${category} jobs in Noida`, "Top hiring companies"]);
+      setLoading(false);
+      setTimeout(() => setLocation(`/jobs?${params.toString()}`), 900);
+      return;
+    }
+
+    // ── "Show me jobs in my field" intent ──
+    if (MY_FIELD_RE.test(msg)) {
+      const userField = user?.fieldOfInterest;
+      if (userField) {
+        const params = new URLSearchParams();
+        params.set("category", userField);
+        setMessages(prev => [...prev, {
+          role: "assistant", ts: Date.now(),
+          content: `🔍 Finding **${userField}** jobs based on your profile — taking you there!`,
+        }]);
+        setSuggestions([`Fresher ${userField} jobs`, `${userField} jobs in Noida`, "How to write a good resume?"]);
+        setLoading(false);
+        setTimeout(() => setLocation(`/jobs?${params.toString()}`), 700);
+        return;
+      } else {
+        awaitingFieldRef.current = true;
+        setMessages(prev => [...prev, {
+          role: "assistant", ts: Date.now(),
+          content: `I'd love to find jobs in your field! 🎯\n\nWhat's your area of interest? (click one below or type your own)`,
+        }]);
+        setSuggestions(["IT/Software", "Sales", "Marketing", "Finance", "HR", "Data Science"]);
+        setLoading(false);
+        return;
+      }
+    }
+
     const jobIntent = parseJobIntent(msg);
+    const salaryIntent = parseSalaryIntent(msg);
 
     try {
       const data = await fetchApi("/ai/chat", {
@@ -228,19 +301,22 @@ export function AIChatbot() {
 
       if (data.suggestions?.length) setSuggestions(data.suggestions.slice(0, 3));
 
-      if (jobIntent) {
-        const { location, category, keyword, experience } = jobIntent;
+      if (jobIntent || Object.keys(salaryIntent).length > 0) {
+        const { location, category, keyword, experience } = jobIntent || {};
         const params = new URLSearchParams();
         if (keyword) params.set("search", keyword);
         if (location && location !== "Remote") params.set("location", location);
         if (location === "Remote") params.set("type", "Remote");
         if (category) params.set("category", category);
         if (experience) params.set("experience", experience);
+        if (salaryIntent.salaryMin) params.set("salaryMin", salaryIntent.salaryMin);
 
         const parts = [];
         if (keyword) parts.push(`"${keyword}"`);
         if (location) parts.push(`in ${location}`);
         if (experience) parts.push(`for ${experience}s`);
+        if (salaryIntent.salaryMin) parts.push(`salary above ₹${salaryIntent.salaryMin}L`);
+        if (salaryIntent.salaryMax && !salaryIntent.salaryMin) parts.push(`salary below ₹${salaryIntent.salaryMax}L`);
         const filterSummary = parts.length ? parts.join(" ") : "matching jobs";
 
         setTimeout(() => {
@@ -257,7 +333,7 @@ export function AIChatbot() {
     } finally {
       setLoading(false);
     }
-  }, [input, inputMode, loading, messages, speakText, setLocation]);
+  }, [input, inputMode, loading, messages, speakText, setLocation, user]);
 
   sendRef.current = sendMessage;
 

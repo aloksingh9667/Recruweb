@@ -84,12 +84,28 @@ function parseParamsToState(search) {
   const sort = p.get("sort") || "date";
   const exp = p.get("experience") || "";
   const q = p.get("search") || "";
+  const salaryMinParam = parseFloat(p.get("salaryMin") || "0");
+  const salaryMaxParam = parseFloat(p.get("salaryMax") || "0");
+
+  let salary = [];
+  if (salaryMinParam > 0 || salaryMaxParam > 0) {
+    const ref = salaryMinParam > 0 ? salaryMinParam : 0;
+    const opt = SALARY_OPTIONS.find(o => ref >= o.min && ref < o.max);
+    if (opt) {
+      salary = [opt.label];
+    } else if (salaryMinParam > 0) {
+      const higher = SALARY_OPTIONS.filter(o => o.min >= salaryMinParam).sort((a, b) => a.min - b.min)[0];
+      if (higher) salary = [higher.label];
+    }
+  }
+
   return {
     locations: loc ? [loc] : [],
     jobTypes: (type && type !== "Remote" && type !== "walk-in") ? [type] : [],
     categories: cat ? [cat] : [],
     workModes: type === "Remote" ? ["Work from home"] : [],
     experience: exp === "Fresher" ? ["Fresher (0-1 yr)"] : exp ? [exp] : [],
+    salary,
     sort, q, locationInput: loc,
   };
 }
@@ -573,7 +589,7 @@ export default function Jobs() {
   const [searchInput, setSearchInput] = useState(init.q);
   const [locationInput, setLocationInput] = useState(init.locationInput);
   const [activeSearch, setActiveSearch] = useState(init.q);
-  const [filters, setFilters] = useState({ locations: init.locations, jobTypes: init.jobTypes, categories: init.categories, workModes: init.workModes, experience: init.experience, salary: [], datePosted: "any" });
+  const [filters, setFilters] = useState({ locations: init.locations, jobTypes: init.jobTypes, categories: init.categories, workModes: init.workModes, experience: init.experience, salary: init.salary, datePosted: "any" });
   const [locationSearch, setLocationSearch] = useState("");
   const [sortBy, setSortBy] = useState("date");
   const [applyDialogJob, setApplyDialogJob] = useState(null);
@@ -581,7 +597,7 @@ export default function Jobs() {
 
   useEffect(() => {
     const s = parseParamsToState(woSearch || window.location.search);
-    setFilters({ locations: s.locations, jobTypes: s.jobTypes, categories: s.categories, workModes: s.workModes, experience: s.experience, salary: [], datePosted: "any" });
+    setFilters({ locations: s.locations, jobTypes: s.jobTypes, categories: s.categories, workModes: s.workModes, experience: s.experience, salary: s.salary, datePosted: "any" });
     setSearchInput(s.q); setActiveSearch(s.q); setLocationInput(s.locationInput);
   }, [woSearch]);
 

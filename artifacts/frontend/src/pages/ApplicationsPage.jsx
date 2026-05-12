@@ -140,11 +140,17 @@ function ApplicationCard({ app }) {
             </p>
           )}
 
-          <div className="flex items-center gap-3 mt-3">
+          <div className="flex items-center gap-3 mt-3 flex-wrap">
             <span className="text-xs text-muted-foreground flex items-center gap-1">
               <Clock className="w-3 h-3" />
               Applied {app.createdAt ? formatDistanceToNow(new Date(app.createdAt), { addSuffix: true }) : ""}
             </span>
+            {app.updatedAt && app.updatedAt !== app.createdAt && (
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
+                Updated {formatDistanceToNow(new Date(app.updatedAt), { addSuffix: true })}
+              </span>
+            )}
             <Link href={`/jobs/${job?._id || job?.id || app.jobId}`} className="ml-auto">
               <Button size="sm" variant="ghost" className="gap-1 h-7 text-xs text-primary">
                 View Job <ChevronRight className="w-3 h-3" />
