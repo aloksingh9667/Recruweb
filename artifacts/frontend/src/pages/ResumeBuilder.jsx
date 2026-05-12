@@ -772,8 +772,40 @@ export default function ResumeBuilder() {
     const el = document.getElementById("cv-preview-print");
     if (!el) return;
     const w = window.open("", "_blank");
-    const tmpl = TEMPLATES.find(t => t.id === selectedTemplate);
-    w.document.write(`<!DOCTYPE html><html><head><title>${formData.fullName || "Resume"}</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:13px;color:#111;background:white;padding:24px;max-width:820px;margin:0 auto}@media print{@page{margin:15mm}}</style></head><body>${el.innerHTML}<script>window.onload=()=>{window.print();window.close()}<\/script></body></html>`);
+    if (!w) return;
+    const isCreative = selectedTemplate === "creative";
+    w.document.write(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${formData.fullName || "Resume"}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=EB+Garamond:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"><\/script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { serif: ["EB Garamond","Georgia","serif"], sans: ["Inter","Arial","sans-serif"] }
+        }
+      }
+    }
+  <\/script>
+  <style>
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body { background: white; margin: 0 auto; max-width: 860px; padding: ${isCreative ? "0" : "32px"}; font-family: Inter, Arial, sans-serif; }
+    @media print { @page { margin: 10mm; size: A4; } body { padding: 0; max-width: 100%; } }
+  </style>
+</head>
+<body>
+  ${el.innerHTML}
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); setTimeout(function(){ window.close(); }, 500); }, 900);
+    };
+  <\/script>
+</body>
+</html>`);
     w.document.close();
   };
 
