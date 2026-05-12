@@ -1,6 +1,7 @@
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "wouter";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
+import { fetchAdmin } from "@/lib/api";
 import {
   LayoutDashboard, Users, Briefcase, Building2,
   LogOut, Shield, FileText, Menu, X, ChevronRight,
@@ -8,15 +9,48 @@ import {
   ExternalLink,
 } from "lucide-react";
 
+interface NotifCounts {
+  unreadContacts: number;
+  newApplications: number;
+  total: number;
+}
+
+function usePollNotifications(enabled: boolean) {
+  const [counts, setCounts] = useState<NotifCounts>({ unreadContacts: 0, newApplications: 0, total: 0 });
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const fetch = () =>
+      fetchAdmin("/admin/notifications")
+        .then((d: NotifCounts) => setCounts(d))
+        .catch(() => {});
+    fetch();
+    intervalRef.current = setInterval(fetch, 30_000);
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [enabled]);
+
+  return counts;
+}
+
+function Badge({ count, color = "bg-red-500" }: { count: number; color?: string }) {
+  if (!count) return null;
+  return (
+    <span className={`ml-auto min-w-[18px] h-[18px] px-1 rounded-full text-white text-[10px] font-bold flex items-center justify-center ${color} shadow`}>
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 const navItems = [
-  { href: "/dashboard",    label: "Dashboard",     icon: LayoutDashboard, color: "text-blue-400" },
-  { href: "/users",        label: "Users",          icon: Users,           color: "text-green-400" },
-  { href: "/employers",    label: "Employers",      icon: Building2,       color: "text-purple-400" },
-  { href: "/jobs",         label: "Jobs",           icon: Briefcase,       color: "text-orange-400" },
-  { href: "/applications", label: "Applications",   icon: FileText,        color: "text-pink-400" },
-  { href: "/contacts",     label: "Contact Us",     icon: MessageSquare,   color: "text-cyan-400" },
-  { href: "/subscribers",  label: "Subscribers",    icon: Bell,            color: "text-yellow-400" },
-  { href: "/settings",     label: "Settings",       icon: Settings,        color: "text-rose-400" },
+  { href: "/dashboard",    label: "Dashboard",     icon: LayoutDashboard, color: "text-blue-400",   notifKey: null },
+  { href: "/users",        label: "Users",          icon: Users,           color: "text-green-400",  notifKey: null },
+  { href: "/employers",    label: "Employers",      icon: Building2,       color: "text-purple-400", notifKey: null },
+  { href: "/jobs",         label: "Jobs",           icon: Briefcase,       color: "text-orange-400", notifKey: null },
+  { href: "/applications", label: "Applications",   icon: FileText,        color: "text-pink-400",   notifKey: "newApplications" },
+  { href: "/contacts",     label: "Contact Us",     icon: MessageSquare,   color: "text-cyan-400",   notifKey: "unreadContacts" },
+  { href: "/subscribers",  label: "Subscribers",    icon: Bell,            color: "text-yellow-400", notifKey: null },
+  { href: "/settings",     label: "Settings",       icon: Settings,        color: "text-rose-400",   notifKey: null },
 ];
 
 function SidebarContent({
@@ -24,18 +58,20 @@ function SidebarContent({
   onNavClick,
   onToggle,
   showToggle = false,
+  counts,
 }: {
   collapsed?: boolean;
   onNavClick?: () => void;
   onToggle?: () => void;
   showToggle?: boolean;
+  counts: NotifCounts;
 }) {
   const { admin, logout } = useAdminAuth();
   const [location] = useLocation();
 
   return (
     <div className="flex flex-col h-full">
-      {/* Logo — click to go to Dashboard */}
+      {/* Logo */}
       <Link href="/dashboard">
         <div
           onClick={onNavClick}
@@ -55,24 +91,38 @@ function SidebarContent({
 
       {/* Nav */}
       <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-        {navItems.map(({ href, label, icon: Icon, color }) => {
+        {navItems.map(({ href, label, icon: Icon, color, notifKey }) => {
           const isActive = location === href || location.startsWith(href + "/");
+          const badgeCount = notifKey ? (counts as any)[notifKey] || 0 : 0;
           return (
             <Link key={href} href={href}>
               <div
                 onClick={onNavClick}
                 title={collapsed ? label : undefined}
                 className={`group flex items-center gap-3 rounded-xl text-sm font-medium transition-all duration-150 cursor-pointer ${
-                  collapsed ? "px-0 py-2 justify-center" : "px-3 py-2"
+                  collapsed ? "px-0 py-2 justify-center relative" : "px-3 py-2"
                 } ${
                   isActive
                     ? "bg-white/10 text-white shadow-sm"
                     : "text-white/60 hover:bg-white/5 hover:text-white"
                 }`}
               >
-                <Icon className={`w-4 h-4 shrink-0 ${isActive ? color : "text-white/40 group-hover:" + color}`} />
+                <div className="relative shrink-0">
+                  <Icon className={`w-4 h-4 ${isActive ? color : "text-white/40 group-hover:" + color}`} />
+                  {collapsed && badgeCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-red-500 text-white text-[8px] font-bold flex items-center justify-center">
+                      {badgeCount > 99 ? "99" : badgeCount}
+                    </span>
+                  )}
+                </div>
                 {!collapsed && <span className="flex-1 whitespace-nowrap">{label}</span>}
-                {!collapsed && isActive && <ChevronRight className="w-3.5 h-3.5 text-white/40" />}
+                {!collapsed && badgeCount > 0 && (
+                  <Badge
+                    count={badgeCount}
+                    color={notifKey === "unreadContacts" ? "bg-cyan-500" : "bg-pink-500"}
+                  />
+                )}
+                {!collapsed && isActive && !badgeCount && <ChevronRight className="w-3.5 h-3.5 text-white/40" />}
               </div>
             </Link>
           );
@@ -92,7 +142,7 @@ function SidebarContent({
           </button>
         )}
 
-        {/* View Main Site button */}
+        {/* View Main Site */}
         <a
           href="/"
           target="_blank"
@@ -144,6 +194,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(() => {
     try { return localStorage.getItem("adminSidebarCollapsed") === "true"; } catch { return false; }
   });
+  const { admin } = useAdminAuth();
+  const counts = usePollNotifications(!!admin);
 
   useEffect(() => {
     try { localStorage.setItem("adminSidebarCollapsed", String(collapsed)); } catch {}
@@ -151,13 +203,18 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      {/* Desktop Sidebar — visible from md (768px) and up */}
+      {/* Desktop Sidebar */}
       <aside
         className={`hidden md:flex shrink-0 flex-col bg-gradient-to-b from-gray-900 via-gray-900 to-gray-800 transition-all duration-300 ${
           collapsed ? "w-14" : "w-56"
         }`}
       >
-        <SidebarContent collapsed={collapsed} onToggle={() => setCollapsed(c => !c)} showToggle />
+        <SidebarContent
+          collapsed={collapsed}
+          onToggle={() => setCollapsed(c => !c)}
+          showToggle
+          counts={counts}
+        />
       </aside>
 
       {/* Mobile Overlay */}
@@ -180,7 +237,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         >
           <X className="w-4 h-4" />
         </button>
-        <SidebarContent onNavClick={() => setMobileOpen(false)} />
+        <SidebarContent onNavClick={() => setMobileOpen(false)} counts={counts} />
       </aside>
 
       {/* Main content */}
@@ -201,15 +258,29 @@ export function AdminLayout({ children }: { children: ReactNode }) {
               <span className="font-bold text-sm text-gray-900">Recruweb Admin</span>
             </div>
           </Link>
-          <a
-            href="/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors border border-indigo-200"
-          >
-            <ExternalLink className="w-3 h-3" />
-            Main Site
-          </a>
+
+          {/* Notification Bell (mobile) */}
+          <div className="ml-auto flex items-center gap-2">
+            <Link href="/contacts">
+              <div className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
+                <Bell className="w-4 h-4 text-gray-500" />
+                {counts.total > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                    {counts.total > 99 ? "99+" : counts.total}
+                  </span>
+                )}
+              </div>
+            </Link>
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium hover:bg-indigo-100 transition-colors border border-indigo-200"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Site
+            </a>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto">

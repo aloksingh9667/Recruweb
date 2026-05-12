@@ -13,6 +13,16 @@ const router = Router();
 
 router.use(protect, requireRole("admin"));
 
+// GET /api/admin/notifications — quick counts for the bell
+router.get("/notifications", async (req, res) => {
+  const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const [unreadContacts, newApplications] = await Promise.all([
+    Contact.countDocuments({ isRead: false }),
+    Application.countDocuments({ createdAt: { $gte: since24h } }),
+  ]);
+  res.json({ unreadContacts, newApplications, total: unreadContacts + newApplications });
+});
+
 // GET /api/admin/stats
 router.get("/stats", async (req, res) => {
   const [

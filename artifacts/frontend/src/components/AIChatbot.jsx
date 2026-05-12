@@ -37,6 +37,71 @@ function formatMessage(content) {
   });
 }
 
+// ── Smart job intent parser ────────────────────────────────────────────────
+const LOCATION_MAP = {
+  mumbai:"Mumbai", bombay:"Mumbai",
+  bangalore:"Bangalore", bengaluru:"Bangalore", blr:"Bangalore",
+  delhi:"Delhi", "new delhi":"Delhi", "delhi ncr":"Delhi", ncr:"Delhi",
+  hyderabad:"Hyderabad", hyd:"Hyderabad",
+  pune:"Pune",
+  chennai:"Chennai", madras:"Chennai",
+  kolkata:"Kolkata", calcutta:"Kolkata",
+  noida:"Noida",
+  gurgaon:"Gurgaon", gurugram:"Gurgaon",
+  remote:"Remote", "work from home":"Remote", wfh:"Remote",
+  ahmedabad:"Ahmedabad", jaipur:"Jaipur", lucknow:"Lucknow",
+};
+const CATEGORY_MAP = {
+  "data analyst":"Data Science","data analysis":"Data Science","data science":"Data Science",
+  "machine learning":"Data Science","ml engineer":"Data Science","ai engineer":"Data Science",
+  "data engineer":"Data Science","business analyst":"Data Science",
+  "software engineer":"IT/Software","software developer":"IT/Software","web developer":"IT/Software",
+  "frontend":"IT/Software","backend":"IT/Software","full stack":"IT/Software","fullstack":"IT/Software",
+  "java developer":"IT/Software","python developer":"IT/Software","react developer":"IT/Software",
+  "node developer":"IT/Software","devops":"IT/Software","cloud engineer":"IT/Software",
+  "marketing":"Marketing","digital marketing":"Marketing","seo":"Marketing","content writer":"Marketing",
+  "sales":"Sales","business development":"Sales","bde":"Sales","bdm":"Sales",
+  "hr":"HR","human resource":"HR","recruiter":"HR","talent acquisition":"HR",
+  "finance":"Finance","accountant":"Finance","ca":"Finance","chartered accountant":"Finance",
+  "graphic design":"Design","ui ux":"Design","product design":"Design","designer":"Design",
+  "operations":"Operations","supply chain":"Operations","logistics":"Operations",
+};
+const FRESHER_RE = /fresher|freshers|entry.level|entry level|0.year|0 to 1|graduate|beginner|no experience/i;
+const JOB_INTENT_RE = /\b(job|jobs|vacancy|vacancies|opening|openings|hiring|work|position|role|internship)\b|dikhao|dhundho|show me|find me|search|chahiye|chahie/i;
+
+function parseJobIntent(msg) {
+  const lower = msg.toLowerCase();
+  if (!JOB_INTENT_RE.test(lower)) return null;
+
+  // Location
+  let location = "";
+  for (const [key, val] of Object.entries(LOCATION_MAP)) {
+    if (lower.includes(key)) { location = val; break; }
+  }
+
+  // Category & keyword
+  let category = "";
+  let keyword = "";
+  for (const [key, val] of Object.entries(CATEGORY_MAP)) {
+    if (lower.includes(key)) { category = val; keyword = key; break; }
+  }
+
+  // If no category matched, extract keyword manually
+  if (!keyword) {
+    keyword = msg
+      .replace(/\b(show|find|search|get|mujhe|dikhao|chahiye|chahie|de|do|batao|wali|wala|ki|ke|liye|for|in|at|the|a|an|please|plz|karo|kro|hain|hai|se|ko|me|mein|jobs?|work|vacancy|vacancies|opening|openings|internship|position|role)\b/gi, " ")
+      .replace(FRESHER_RE, "")
+      .replace(new RegExp(Object.keys(LOCATION_MAP).join("|"), "gi"), "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 40);
+  }
+
+  const experience = FRESHER_RE.test(msg) ? "Fresher" : "";
+
+  return { location, category, keyword, experience };
+}
+
 export function AIChatbot() {
   const [open, setOpen]           = useState(false);
   const [minimized, setMin]       = useState(false);
@@ -144,8 +209,7 @@ export function AIChatbot() {
     setLoading(true);
     setSuggestions([]);
 
-    const jobKeywords = ["find job", "search job", "job in", "jobs in", "vacancy", "hiring", "show jobs"];
-    const hasJobIntent = jobKeywords.some(t => msg.toLowerCase().includes(t));
+    const jobIntent = parseJobIntent(msg);
 
     try {
       const data = await fetchApi("/ai/chat", {
@@ -164,12 +228,28 @@ export function AIChatbot() {
 
       if (data.suggestions?.length) setSuggestions(data.suggestions.slice(0, 3));
 
-      if (hasJobIntent) {
-        const kw = msg.replace(/(find|search|show|list|get|me|jobs?|in|for|at|the|all)/gi, "").trim();
+      if (jobIntent) {
+        const { location, category, keyword, experience } = jobIntent;
+        const params = new URLSearchParams();
+        if (keyword) params.set("search", keyword);
+        if (location && location !== "Remote") params.set("location", location);
+        if (location === "Remote") params.set("type", "Remote");
+        if (category) params.set("category", category);
+        if (experience) params.set("experience", experience);
+
+        const parts = [];
+        if (keyword) parts.push(`"${keyword}"`);
+        if (location) parts.push(`in ${location}`);
+        if (experience) parts.push(`for ${experience}s`);
+        const filterSummary = parts.length ? parts.join(" ") : "matching jobs";
+
         setTimeout(() => {
-          setMessages(prev => [...prev, { role: "assistant", ts: Date.now(), content: "🔍 Taking you to the Jobs page!" }]);
-          setTimeout(() => setLocation(`/jobs?search=${encodeURIComponent(kw.slice(0, 50))}`), 900);
-        }, 700);
+          setMessages(prev => [...prev, {
+            role: "assistant", ts: Date.now(),
+            content: `🔍 Filtering jobs for ${filterSummary} — taking you there now!`,
+          }]);
+          setTimeout(() => setLocation(`/jobs?${params.toString()}`), 900);
+        }, 600);
       }
     } catch {
       setMessages(prev => [...prev, { role: "assistant", ts: Date.now(), content: "⚠️ Connection error. Please check your network and try again." }]);
