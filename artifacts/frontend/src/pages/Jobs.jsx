@@ -13,6 +13,7 @@ import {
   BookmarkCheck, SlidersHorizontal, X, ChevronDown, ChevronUp,
   Star, Building2, Users, Send, Zap, TrendingUp, Filter,
   Sparkles, CheckCircle2, XCircle, Tag, Lightbulb, ChevronRight, Wand2,
+  Upload, FileText, Check,
 } from "lucide-react";
 import { formatDistanceToNow, subDays, subHours } from "date-fns";
 
@@ -594,6 +595,10 @@ export default function Jobs() {
   const [sortBy, setSortBy] = useState("date");
   const [applyDialogJob, setApplyDialogJob] = useState(null);
   const [coverLetter, setCoverLetter] = useState("");
+  const [resumeMode, setResumeMode] = useState("profile");
+  const [resumeFile, setResumeFile] = useState(null);
+  const [resumeUploading, setResumeUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const s = parseParamsToState(woSearch || window.location.search);
@@ -606,6 +611,13 @@ export default function Jobs() {
     queryFn: () => fetchApi("/jobs?limit=100"),
     staleTime: 60000,
   });
+
+  const { data: candidateProfile } = useQuery({
+    queryKey: ["candidateProfile"],
+    queryFn: () => fetchApi("/candidates/profile"),
+    enabled: isCandidate,
+  });
+  const hasProfileResume = !!(candidateProfile?.resumePublicId);
 
   const { data: savedJobsRaw } = useQuery({ queryKey: ["savedJobs"], queryFn: () => fetchApi("/jobs/saved/my"), enabled: isCandidate });
   const savedJobIds = useMemo(() => {
@@ -626,8 +638,33 @@ export default function Jobs() {
   });
 
   const applyMutation = useMutation({
-    mutationFn: ({ jobId, coverLetter }) => fetchApi("/applications", { method:"POST", body:JSON.stringify({ jobId, coverLetter }) }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey:["myApplications"] }); toast({ title:"Application submitted!", description:"Your application has been sent." }); setApplyDialogJob(null); setCoverLetter(""); },
+    mutationFn: async ({ jobId, coverLetter }) => {
+      let attached = resumeMode === "profile" ? hasProfileResume : false;
+      if (resumeMode === "upload" && resumeFile) {
+        setResumeUploading(true);
+        try {
+          const fd = new FormData();
+          fd.append("resume", resumeFile);
+          await fetchApi("/candidates/resume", { method: "POST", body: fd });
+          attached = true;
+        } finally {
+          setResumeUploading(false);
+        }
+      }
+      return fetchApi("/applications", {
+        method: "POST",
+        body: JSON.stringify({ jobId, coverLetter, resumeAttached: attached }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["myApplications"] });
+      queryClient.invalidateQueries({ queryKey: ["candidateProfile"] });
+      toast({ title: "Application submitted!", description: "Your application has been sent." });
+      setApplyDialogJob(null);
+      setCoverLetter("");
+      setResumeFile(null);
+      setResumeMode("profile");
+    },
     onError: err => toast({ title:"Failed", description:err.message, variant:"destructive" }),
   });
 
@@ -640,7 +677,10 @@ export default function Jobs() {
   const handleApply = useCallback((job) => {
     if (!user) { setLocation("/login"); return; }
     if (!isCandidate) { toast({ title:"Candidates only", description:"Employers cannot apply to jobs.", variant:"destructive" }); return; }
-    setApplyDialogJob(job); setCoverLetter("");
+    setApplyDialogJob(job);
+    setCoverLetter("");
+    setResumeFile(null);
+    setResumeMode("profile");
   }, [user, isCandidate, toast, setLocation]);
 
   const toggle = useCallback((key, value) => {
@@ -696,24 +736,151 @@ export default function Jobs() {
       `}</style>
 
       {/* Apply Dialog */}
-      <Dialog open={!!applyDialogJob} onOpenChange={open => { if (!open) setApplyDialogJob(null); }}>
-        <DialogContent className="sm:max-w-md rounded-2xl">
+      <Dialog open={!!applyDialogJob} onOpenChange={open => { if (!open) { setApplyDialogJob(null); setResumeFile(null); setResumeMode("profile"); } }}>
+        <DialogContent className="sm:max-w-lg rounded-2xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Send className="w-5 h-5 text-indigo-600" />Apply for {applyDialogJob?.title}</DialogTitle>
-            <DialogDescription>{applyDialogJob?.company||applyDialogJob?.employer?.company} · {applyDialogJob?.location}</DialogDescription>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
+                <Send className="w-4 h-4 text-white" />
+              </div>
+              Apply for {applyDialogJob?.title}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {applyDialogJob?.company || applyDialogJob?.employer?.company} · {applyDialogJob?.location}
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
+
+          <div className="space-y-5 pt-1">
+            {/* ── Applicant info banner ── */}
+            {candidateProfile && (
+              <div className="flex items-center gap-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/40 rounded-xl px-4 py-3">
+                <div className="w-9 h-9 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+                  {(candidateProfile.name || user?.name || "U").charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-indigo-900 dark:text-indigo-200 truncate">{candidateProfile.name || user?.name}</p>
+                  <p className="text-xs text-indigo-600 dark:text-indigo-400 truncate">{candidateProfile.email || user?.email}</p>
+                </div>
+                <span className="ml-auto text-[10px] font-semibold text-indigo-500 bg-indigo-100 dark:bg-indigo-900/40 px-2 py-0.5 rounded-full shrink-0">Applying as Candidate</span>
+              </div>
+            )}
+
+            {/* ── Resume Section ── */}
             <div>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">Resume</h3>
+
+              {/* Mode toggle */}
+              <div className="flex gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => setResumeMode("profile")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-semibold transition-all ${resumeMode === "profile" ? "bg-indigo-600 border-indigo-600 text-white shadow-sm" : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-indigo-300 hover:text-indigo-600"}`}
+                >
+                  <FileText className="w-4 h-4" /> Use from Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setResumeMode("upload")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-semibold transition-all ${resumeMode === "upload" ? "bg-indigo-600 border-indigo-600 text-white shadow-sm" : "border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-indigo-300 hover:text-indigo-600"}`}
+                >
+                  <Upload className="w-4 h-4" /> Upload New
+                </button>
+              </div>
+
+              {/* Profile resume */}
+              {resumeMode === "profile" && (
+                <div>
+                  {hasProfileResume ? (
+                    <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-4 py-3">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
+                        <Check className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Resume on file</p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">Your uploaded resume will be shared with the employer</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-4 py-3">
+                      <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                        <FileText className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">No resume in profile</p>
+                        <p className="text-xs text-amber-600 dark:text-amber-400">Switch to "Upload New" to attach a resume, or apply without one</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Upload new resume */}
+              {resumeMode === "upload" && (
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    className="hidden"
+                    onChange={e => setResumeFile(e.target.files?.[0] || null)}
+                  />
+                  {resumeFile ? (
+                    <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-4 py-3">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
+                        <Check className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 truncate">{resumeFile.name}</p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">{(resumeFile.size / 1024).toFixed(0)} KB · Ready to upload</p>
+                      </div>
+                      <button type="button" onClick={() => setResumeFile(null)} className="text-emerald-500 hover:text-red-500 transition-colors">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full border-2 border-dashed border-indigo-200 dark:border-indigo-800 rounded-xl py-7 flex flex-col items-center gap-2 text-indigo-400 hover:border-indigo-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-900/20 transition-all group"
+                    >
+                      <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+                        <Upload className="w-5 h-5 text-indigo-500" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">Click to upload resume</p>
+                        <p className="text-xs text-gray-400 mt-0.5">PDF, DOC, DOCX · Max 5MB</p>
+                      </div>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── Cover Letter ── */}
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">Cover Letter <span className="font-normal normal-case text-gray-400">(optional)</span></h3>
               <AICoverLetterField
                 jobId={applyDialogJob?.id || applyDialogJob?._id}
                 value={coverLetter}
                 onChange={setCoverLetter}
               />
             </div>
-            <div className="flex gap-3">
-              <Button variant="outline" className="flex-1" onClick={() => setApplyDialogJob(null)}>Cancel</Button>
-              <Button className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white gap-2" onClick={() => applyMutation.mutate({ jobId: applyDialogJob.id||applyDialogJob._id, coverLetter })} disabled={applyMutation.isPending}>
-                <Send className="w-4 h-4" />{applyMutation.isPending ? "Submitting..." : "Submit"}
+
+            {/* ── Actions ── */}
+            <div className="flex gap-3 pt-1">
+              <Button variant="outline" className="flex-1" onClick={() => { setApplyDialogJob(null); setResumeFile(null); setResumeMode("profile"); }}>
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white gap-2 font-semibold"
+                onClick={() => applyMutation.mutate({ jobId: applyDialogJob.id || applyDialogJob._id, coverLetter })}
+                disabled={applyMutation.isPending || resumeUploading}
+              >
+                {applyMutation.isPending || resumeUploading ? (
+                  <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />{resumeUploading ? "Uploading..." : "Submitting..."}</>
+                ) : (
+                  <><Send className="w-4 h-4" />Apply Now</>
+                )}
               </Button>
             </div>
           </div>
