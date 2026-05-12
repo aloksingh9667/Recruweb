@@ -105,7 +105,7 @@ export function AIChatbot() {
     window.speechSynthesis.cancel();
     const clean = text.replace(/[*•#🔍🎯📄💬👋✨]/g, "").replace(/\n/g, " ").trim();
     const utt = new SpeechSynthesisUtterance(clean.slice(0, 300));
-    utt.lang = "en-IN"; utt.rate = 1.05; utt.pitch = 1.3;
+    utt.lang = "en-IN"; utt.rate = 1.45; utt.pitch = 1.25; utt.volume = 1;
 
     // Load voices async — Chrome returns empty array before voiceschanged fires
     const voices = await new Promise(resolve => {
