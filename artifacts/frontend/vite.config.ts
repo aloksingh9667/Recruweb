@@ -58,19 +58,16 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
   },
-  define: {
-    "import.meta.env.VITE_API_BASE": JSON.stringify(
-      process.env.REPLIT_DEV_DOMAIN
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}:8080`
-        : "http://localhost:8080"
-    ),
-  },
   server: {
     port,
     strictPort: true,
     host: "0.0.0.0",
     allowedHosts: true,
     proxy: {
+      "/api": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
       "/admin": {
         target: "http://localhost:3002",
         changeOrigin: true,
