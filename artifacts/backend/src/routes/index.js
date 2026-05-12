@@ -7,6 +7,7 @@ import employersRouter from "./employers.js";
 import adminRouter from "./admin.js";
 import aiRouter from "./ai.js";
 import publicRouter from "./public.js";
+import notificationsRouter from "./notifications.js";
 
 const router = Router();
 
@@ -14,6 +15,7 @@ router.get("/healthz", (req, res) => res.json({ status: "ok", service: "Recruweb
 router.use("/auth", authRouter);
 router.use("/jobs", jobsRouter);
 router.use("/applications", applicationsRouter);
+router.use("/notifications", notificationsRouter);
 router.use("/candidates", candidatesRouter);
 router.use("/employers", employersRouter);
 router.use("/admin", adminRouter);

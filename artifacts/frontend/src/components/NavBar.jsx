@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchApi } from "@/lib/api";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -16,8 +16,8 @@ import {
   FileText, Building2, Bookmark, Search, MapPin, DollarSign, Star, WifiHigh,
   Wand2, TrendingUp, Layers, BarChart3, Plus,
   Users, HelpCircle, Phone, Mail, AlertCircle, Settings, Moon, Sun,
-  Bell, Menu, Home, ClipboardList, CheckSquare, Trophy, ChevronRight,
-  Sparkles, UserCheck, Zap, Calendar,
+  Bell, BellOff, Menu, Home, ClipboardList, CheckSquare, Trophy, ChevronRight,
+  Sparkles, UserCheck, Zap, Calendar, Trash2, CheckCheck,
 } from "lucide-react";
 
 function NavDropdown({ trigger, children }) {
@@ -75,81 +75,67 @@ function MobileLink({ href, icon: Icon, label, onClick }) {
   );
 }
 
-function statusToNotif(app) {
-  const jobTitle = app.job?.title || app.jobId?.title || "a job";
-  const company = app.job?.company || app.jobId?.company || app.jobId?.employer?.company || "";
-  const companyStr = company ? ` at ${company}` : "";
-  const map = {
-    reviewed:            { icon: FileText,    color: "text-blue-600",   bg: "bg-blue-50 dark:bg-blue-900/20",   title: "Application Under Review", desc: `Your application for ${jobTitle}${companyStr} is being reviewed` },
-    shortlisted:         { icon: CheckSquare, color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-900/20", title: "You've Been Shortlisted!", desc: `Shortlisted for ${jobTitle}${companyStr}` },
-    interview_scheduled: { icon: Calendar,    color: "text-teal-600",   bg: "bg-teal-50 dark:bg-teal-900/20",   title: "Interview Scheduled!", desc: `Interview scheduled for ${jobTitle}${companyStr}` },
-    hired:               { icon: Trophy,      color: "text-green-600",  bg: "bg-green-50 dark:bg-green-900/20", title: "Congratulations! You're Hired!", desc: `Offer received for ${jobTitle}${companyStr}` },
-    rejected:            { icon: AlertCircle, color: "text-red-500",    bg: "bg-red-50 dark:bg-red-900/20",     title: "Application Not Selected", desc: `Application for ${jobTitle}${companyStr} was not selected` },
-    pending:             { icon: FileText,    color: "text-blue-500",   bg: "bg-blue-50 dark:bg-blue-900/20",   title: "Application Submitted", desc: `Applied for ${jobTitle}${companyStr}` },
-  };
-  return map[app.status] || map.pending;
+// ── Notification icon map ──────────────────────────────────────────────────
+const TYPE_META = {
+  application_received: { icon: Users,       color: "text-blue-600",   bg: "bg-blue-50 dark:bg-blue-900/20" },
+  status_changed:       { icon: CheckSquare, color: "text-violet-600", bg: "bg-violet-50 dark:bg-violet-900/20" },
+};
+
+const STATUS_META = {
+  reviewed:            { icon: FileText,    color: "text-blue-600",   bg: "bg-blue-50 dark:bg-blue-900/20" },
+  shortlisted:         { icon: Star,        color: "text-purple-600", bg: "bg-purple-50 dark:bg-purple-900/20" },
+  interview_scheduled: { icon: Calendar,    color: "text-teal-600",   bg: "bg-teal-50 dark:bg-teal-900/20" },
+  hired:               { icon: Trophy,      color: "text-green-600",  bg: "bg-green-50 dark:bg-green-900/20" },
+  rejected:            { icon: AlertCircle, color: "text-red-500",    bg: "bg-red-50 dark:bg-red-900/20" },
+};
+
+function getNotifMeta(notif) {
+  if (notif.type === "status_changed" && notif.metadata?.status) {
+    return STATUS_META[notif.metadata.status] || TYPE_META.status_changed;
+  }
+  return TYPE_META[notif.type] || TYPE_META.application_received;
 }
 
+// ── NotificationBell ───────────────────────────────────────────────────────
 function NotificationBell({ isCandidate, isEmployer }) {
   const [open, setOpen] = useState(false);
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
-  const { data: candidateAppsData } = useQuery({
-    queryKey: ["myApplications"],
-    queryFn: () => fetchApi("/applications/my"),
-    enabled: isCandidate,
-    staleTime: 30000,
+  const { data, isLoading } = useQuery({
+    queryKey: ["notifications"],
+    queryFn: () => fetchApi("/notifications"),
+    enabled: !!(isCandidate || isEmployer),
+    refetchInterval: open ? 15000 : 30000,
+    staleTime: 10000,
   });
 
-  const { data: employerAppsData } = useQuery({
-    queryKey: ["employerApplications"],
-    queryFn: () => fetchApi("/applications/employer/all"),
-    enabled: isEmployer,
-    staleTime: 30000,
+  const notifications = data?.notifications || [];
+  const unreadCount   = data?.unreadCount   ?? 0;
+
+  const markAllRead = useMutation({
+    mutationFn: () => fetchApi("/notifications/read-all", { method: "PATCH" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
-  const notifications = useMemo(() => {
-    if (isCandidate) {
-      const apps = candidateAppsData?.applications || [];
-      return apps
-        .filter(a => a.status !== "pending")
-        .slice(0, 5)
-        .map((app, i) => {
-          const n = statusToNotif(app);
-          return {
-            id: i,
-            icon: n.icon,
-            color: n.color,
-            bg: n.bg,
-            title: n.title,
-            desc: n.desc,
-            time: app.updatedAt ? formatDistanceToNow(new Date(app.updatedAt), { addSuffix: true }) : "",
-            href: `/applications?tab=${app.status === "interview_scheduled" ? "interview" : app.status === "shortlisted" ? "shortlisted" : "all"}`,
-          };
-        });
-    }
-    if (isEmployer) {
-      const apps = employerAppsData?.applications || [];
-      return apps.slice(0, 5).map((app, i) => {
-        const jobTitle = app.job?.title || "a position";
-        const candidateName = app.candidate?.name || app.candidate?.user?.name || "A candidate";
-        return {
-          id: i,
-          icon: Users,
-          color: "text-blue-600",
-          bg: "bg-blue-50 dark:bg-blue-900/20",
-          title: "New Application Received",
-          desc: `${candidateName} applied to ${jobTitle}`,
-          jobTitle,
-          time: app.createdAt ? formatDistanceToNow(new Date(app.createdAt), { addSuffix: true }) : "",
-          href: "/employer/applications",
-        };
-      });
-    }
-    return [];
-  }, [isCandidate, isEmployer, candidateAppsData, employerAppsData]);
+  const clearAll = useMutation({
+    mutationFn: () => fetchApi("/notifications", { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+  });
 
-  const unreadCount = notifications.length;
+  const markOneRead = useMutation({
+    mutationFn: (id) => fetchApi(`/notifications/${id}/read`, { method: "PATCH" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
+  const handleNotifClick = (notif) => {
+    if (!notif.isRead) markOneRead.mutate(notif._id);
+    const href = notif.type === "application_received"
+      ? (notif.metadata?.jobId ? `/employer/jobs/${notif.metadata.jobId}/applications` : "/employer/applications")
+      : "/applications";
+    setLocation(href);
+    setOpen(false);
+  };
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -157,58 +143,109 @@ function NotificationBell({ isCandidate, isEmployer }) {
         <Button variant="ghost" size="icon" className="h-8 w-8 relative">
           <Bell className="w-4 h-4" />
           {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
-              {unreadCount}
+            <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+              {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           )}
         </Button>
       </DropdownMenuTrigger>
+
       <DropdownMenuContent align="end" className="w-80 p-0 shadow-xl" sideOffset={8}>
+        {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20">
-          <h3 className="font-semibold text-sm">Notifications</h3>
-          <span className="text-[10px] bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-medium">{unreadCount} new</span>
+          <div className="flex items-center gap-2">
+            <h3 className="font-semibold text-sm">Notifications</h3>
+            {unreadCount > 0 && (
+              <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded-full font-bold">
+                {unreadCount} new
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            {unreadCount > 0 && (
+              <button
+                title="Mark all as read"
+                onClick={() => markAllRead.mutate()}
+                className="p-1 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+              >
+                <CheckCheck className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {notifications.length > 0 && (
+              <button
+                title="Clear all notifications"
+                onClick={() => clearAll.mutate()}
+                className="p-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-muted-foreground hover:text-red-500"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* List */}
         <div className="max-h-80 overflow-y-auto divide-y divide-border">
-          {notifications.length === 0 ? (
+          {isLoading ? (
+            <div className="py-8 text-center">
+              <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground">Loading…</p>
+            </div>
+          ) : notifications.length === 0 ? (
             <div className="py-10 text-center">
-              <Bell className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-              <p className="text-xs text-muted-foreground">No notifications yet</p>
+              <BellOff className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-xs font-medium text-muted-foreground">No notifications yet</p>
               <p className="text-[10px] text-muted-foreground/60 mt-0.5">
                 {isCandidate ? "Apply to jobs to see updates here" : "New applications will appear here"}
               </p>
             </div>
           ) : notifications.map((notif) => {
-            const Icon = notif.icon;
+            const meta = getNotifMeta(notif);
+            const Icon = meta.icon;
             return (
               <div
-                key={notif.id}
-                onClick={() => { setLocation(notif.href); setOpen(false); }}
-                className="flex items-start gap-3 px-4 py-3 hover:bg-muted/40 cursor-pointer transition-colors"
+                key={notif._id}
+                onClick={() => handleNotifClick(notif)}
+                className={`flex items-start gap-3 px-4 py-3 hover:bg-muted/40 cursor-pointer transition-colors relative ${
+                  !notif.isRead ? "bg-primary/4" : ""
+                }`}
               >
-                <div className={`w-8 h-8 rounded-full ${notif.bg} flex items-center justify-center shrink-0 mt-0.5`}>
-                  <Icon className={`w-4 h-4 ${notif.color}`} />
+                {/* Unread dot */}
+                {!notif.isRead && (
+                  <span className="absolute top-3.5 right-3 w-1.5 h-1.5 rounded-full bg-primary" />
+                )}
+                <div className={`w-8 h-8 rounded-full ${meta.bg} flex items-center justify-center shrink-0 mt-0.5`}>
+                  <Icon className={`w-4 h-4 ${meta.color}`} />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-foreground leading-tight">{notif.title}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{notif.desc}</p>
-                  {notif.jobTitle && (
-                    <span className="inline-block mt-1 text-[10px] bg-primary/8 text-primary px-2 py-0.5 rounded-full font-medium">
-                      {notif.jobTitle}
-                    </span>
-                  )}
+                <div className="flex-1 min-w-0 pr-3">
+                  <p className={`text-xs leading-tight ${notif.isRead ? "font-medium text-foreground/80" : "font-semibold text-foreground"}`}>
+                    {notif.title}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{notif.message}</p>
+                  <span className="text-[10px] text-muted-foreground/70 mt-1 block">
+                    {notif.createdAt ? formatDistanceToNow(new Date(notif.createdAt), { addSuffix: true }) : ""}
+                  </span>
                 </div>
-                <span className="text-[10px] text-muted-foreground shrink-0 mt-1">{notif.time}</span>
               </div>
             );
           })}
         </div>
-        <div className="px-4 py-2.5 border-t bg-muted/10">
+
+        {/* Footer */}
+        <div className="px-4 py-2.5 border-t bg-muted/10 flex items-center justify-between">
           <button
             onClick={() => { setLocation(isEmployer ? "/employer/applications" : "/applications"); setOpen(false); }}
-            className="w-full text-center text-xs text-primary hover:underline font-medium"
+            className="text-xs text-primary hover:underline font-medium"
           >
-            View all {isEmployer ? "applications" : "notifications"} →
+            View all {isEmployer ? "applications" : "updates"} →
           </button>
+          {notifications.length > 0 && (
+            <button
+              onClick={() => clearAll.mutate()}
+              className="text-xs text-muted-foreground hover:text-red-500 transition-colors flex items-center gap-1"
+            >
+              <Trash2 className="w-3 h-3" /> Clear all
+            </button>
+          )}
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -348,7 +385,6 @@ export function NavBar() {
             <>
               <NotificationBell isCandidate={isCandidate} isEmployer={isEmployer} />
 
-
               <NavDropdown trigger={
                 <Button variant="ghost" size="sm" className="gap-2 ml-1">
                   <div className="w-6 h-6 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold">
@@ -392,11 +428,12 @@ export function NavBar() {
           )}
         </div>
 
-        {/* Mobile: theme + menu */}
+        {/* Mobile: theme + bell + menu */}
         <div className="flex lg:hidden items-center gap-1">
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleTheme}>
             {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </Button>
+          {user && <NotificationBell isCandidate={isCandidate} isEmployer={isEmployer} />}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8"><Menu className="w-4 h-4" /></Button>
@@ -422,7 +459,6 @@ export function NavBar() {
                       <p className="font-semibold text-sm truncate">{user.name}</p>
                       <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
                     </div>
-                    <Bell className="w-4 h-4 text-muted-foreground" />
                   </div>
                 )}
 

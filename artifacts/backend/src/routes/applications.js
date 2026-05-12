@@ -1,11 +1,24 @@
 import { Router } from "express";
 import Application from "../models/Application.js";
 import Job from "../models/Job.js";
+import User from "../models/User.js";
 import CandidateProfile from "../models/CandidateProfile.js";
+import EmployerProfile from "../models/EmployerProfile.js";
+import Notification from "../models/Notification.js";
 import { protect, requireRole } from "../middleware/auth.js";
 import { getSignedResumeUrl } from "../lib/cloudinary.js";
+import { sendApplicationReceivedEmail, sendStatusChangedEmail } from "../lib/email.js";
 
 const router = Router();
+
+const STATUS_LABELS = {
+  pending:             "Pending Review",
+  reviewed:            "Under Review",
+  shortlisted:         "Shortlisted",
+  interview_scheduled: "Interview Scheduled",
+  hired:               "Hired — Congratulations!",
+  rejected:            "Application Not Selected",
+};
 
 // POST /api/applications — candidate only
 router.post("/", protect, requireRole("candidate"), async (req, res) => {
@@ -20,7 +33,7 @@ router.post("/", protect, requireRole("candidate"), async (req, res) => {
 
   if (!jobId) return res.status(400).json({ message: "jobId required" });
 
-  const job = await Job.findById(jobId);
+  const job = await Job.findById(jobId).populate("employerId");
   if (!job || !job.isActive) return res.status(404).json({ message: "Job not found" });
 
   const existing = await Application.findOne({ jobId, candidateId: req.user._id });
@@ -36,6 +49,33 @@ router.post("/", protect, requireRole("candidate"), async (req, res) => {
     resumeAttached: !!resumeAttached,
   });
   await Job.findByIdAndUpdate(jobId, { $inc: { applicantCount: 1 } });
+
+  // ── Notify employer ──────────────────────────────────────────────────────
+  const candidateName = req.user.name || fullName || "A candidate";
+  const employerUserId = job.employerId?._id || job.employerId;
+  const employerUser   = employerUserId ? await User.findById(employerUserId).lean() : null;
+
+  if (employerUserId) {
+    await Notification.create({
+      userId:  employerUserId,
+      type:    "application_received",
+      title:   "New Application Received",
+      message: `${candidateName} applied for ${job.title}`,
+      metadata: { jobId: job._id, jobTitle: job.title, candidateName, applicationId: application._id },
+    });
+  }
+
+  if (employerUser?.email) {
+    const employerProfile = await EmployerProfile.findOne({ userId: employerUserId }).lean();
+    sendApplicationReceivedEmail({
+      to:            employerUser.email,
+      employerName:  employerProfile?.companyName || employerUser.name || "Employer",
+      candidateName,
+      jobTitle:      job.title,
+      applicationId: application._id,
+    }).catch(() => {});
+  }
+
   res.status(201).json(application.toJSON());
 });
 
@@ -97,7 +137,6 @@ router.get("/job/:jobId", protect, requireRole("employer"), async (req, res) => 
     })
   );
 
-  // Apply frontend-side filters after populating
   let filtered = result;
 
   if (skills) {
@@ -201,6 +240,38 @@ router.put("/:applicationId/status", protect, requireRole("employer"), async (re
 
   application.status = status;
   await application.save();
+
+  // ── Notify candidate ─────────────────────────────────────────────────────
+  const candidateUser = await User.findById(application.candidateId).lean();
+  const jobTitle = application.jobId?.title || "a position";
+  const statusLabel = STATUS_LABELS[status] || status;
+
+  if (candidateUser) {
+    await Notification.create({
+      userId:  candidateUser._id,
+      type:    "status_changed",
+      title:   statusLabel,
+      message: `Your application for ${jobTitle} has been updated to: ${statusLabel}`,
+      metadata: {
+        jobId:         application.jobId._id,
+        jobTitle,
+        status,
+        applicationId: application._id,
+      },
+    });
+
+    const employerProfile = await EmployerProfile.findOne({ userId: req.user._id }).lean();
+    const company = employerProfile?.companyName || "";
+
+    sendStatusChangedEmail({
+      to:            candidateUser.email,
+      candidateName: candidateUser.name,
+      jobTitle,
+      company,
+      status,
+    }).catch(() => {});
+  }
+
   res.json(application.toJSON());
 });
 
